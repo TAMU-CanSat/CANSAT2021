@@ -1,0 +1,19 @@
+Altitude, meters, one decimal precision
+Temp, degrees C, one decimal precision
+Voltage, 0.01 precision
+GPS_TIME, UTC, int
+GPS_Latitude, 0.0001
+GPS_Longitude, 0.0001
+GPA_SATS, int
+
+SOFTWARE_STATE --> LAUNCH_WAIT, ASCENT, ROCKET_SEPARATION, DECENT, SP1_RELEASE
+SP2_RELEASE
+
+SP1_PACKET_COUNT
+SP2_PACKET_COUNT
+
+
+
+# Complete
+Light for SP1 release, N/R
+Light for SP2 release, N/R
