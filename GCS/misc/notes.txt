@@ -2,13 +2,18 @@ Altitude, meters, one decimal precision
 Temp, degrees C, one decimal precision
 Voltage, 0.01 precision
 GPS_TIME, UTC, int
+MISSION_TIME, UTC, hh:mm:ss
 GPS_Latitude, 0.0001
 GPS_Longitude, 0.0001
 GPA_SATS, int
+GPS_Altitude
 
 SOFTWARE_STATE --> LAUNCH_WAIT, ASCENT, ROCKET_SEPARATION, DECENT, SP1_RELEASE
 SP2_RELEASE
 
+
+
+PACKET_COUNT
 SP1_PACKET_COUNT
 SP2_PACKET_COUNT
 
@@ -17,3 +22,19 @@ SP2_PACKET_COUNT
 # Complete
 Light for SP1 release, N/R
 Light for SP2 release, N/R
+
+
+
+# PLOT
+Voltage
+Altitude
+GPS_Altitude
+Temp
+
+Payload1 ALTITUDE
+Payload1 TEMP
+Payload1 Rotation rate
+
+Payload2 ALTITUDE
+Payload2 TEMP
+Payload2 Rotation rate
