@@ -6,7 +6,9 @@ from matplotlib import style
 # misc imports
 import tkinter
 import os
-import time
+
+# Performance profiling
+import timeit
 
 
 #################################################################
@@ -20,8 +22,8 @@ GRAPH_MAX_TICKS_X = 6
 
 # GPS graph configuration
 GPS_IMAGE_FILEPATH = "misc/map8.png"
-GPS_BOTTOM_LEFT = [30.610252837146604, -96.355542911837]
-GPS_TOP_RIGHT = [30.621074225490286, -96.33900977620632]
+GPS_BOTTOM_LEFT = [30.610252837146604, -96.355542911837]  # Coordinates of bottom left corner of map image
+GPS_TOP_RIGHT = [30.621074225490286, -96.33900977620632]  # Coordinates of top right corner of map image
 
 # Hex colors for CANSAT, SP1, and SP2 on the GUI
 COLOR_CANSAT = "#03fc39"
@@ -141,9 +143,9 @@ icon = tkinter.PhotoImage(file=ICON_FILEPATH)
 window.iconphoto(False, icon)
 
 # Variables to track last packets received and lost packets
-packet_received_cansat = 0
-packet_received_sp1 = 0
-packet_received_sp2 = 0
+packets_received_cansat = 0
+packets_received_sp1 = 0
+packets_received_sp2 = 0
 packets_lost_cansat = 0
 packets_lost_sp1 = 0
 packets_lost_sp2 = 0
@@ -205,14 +207,18 @@ while not stop:
     gps_lat = []
     gps_long = []
 
-    # TODO This could probably be done better with pandas
     # Fill out the data sets from the cansat data
+    packets_received_cansat = 0
     for line in data_cansat:
         # Catch empty line
         if len(line) == 0:
             continue
 
+        # Split the data
         data = line.replace("\n", " ").split(",")
+
+        # Counter for packets received
+        packets_received_cansat += 1
 
         # Grab values from the data
         time_values.append(data[1])                 # Mission time
@@ -237,7 +243,6 @@ while not stop:
     # Grab the most recent data from the cansat datafile
     cansat_recent = data_cansat[len(data_cansat) - 1].replace('\n', '').split(',')
 
-    # TODO These checks could be more efficient
     # Check the SP1_RELEASE and SP2_RELEASE status columns
     if "Y" in cansat_recent[5]:
         indicator_sp1.config(bg="green")
@@ -245,19 +250,14 @@ while not stop:
     if "Y" in cansat_recent[6]:
         indicator_sp2.config(bg="green")
 
-    # TODO Update this so lost packets are based on the last packet received IN the data, not in memory
-    # TODO Carry changes down to SP1 and SP2
-    # Check for new packets
-    if int(cansat_recent[2]) != packet_received_cansat:
-        # Check if the most recent packet was expected
-        if (int(packet_received_cansat) + 1) != int(cansat_recent[2]):
-            packets_lost_cansat += int(cansat_recent[2]) - (int(packet_received_cansat) + 1)
-        packet_received_cansat = int(cansat_recent[2])
+    # Count missing packets
+    if int(packets_received_cansat) != int(cansat_recent[2]):
+        packets_lost_cansat = int(cansat_recent[2]) - int(packets_received_cansat)
 
     # Update CANSAT labels
     time_mission_variable.set("Mission Time: " + str(cansat_recent[1]))
     time_gps_variable.set("GPS Time: " + str(cansat_recent[10]))
-    packets_cansat_received_variable.set("Packets Received - CANSAT: " + str(packet_received_cansat - packets_lost_cansat))
+    packets_cansat_received_variable.set("Packets Received - CANSAT: " + str(packets_received_cansat - packets_lost_cansat))
     packets_cansat_lost_variable.set("Packets Lost - CANSAT: " + str(packets_lost_cansat))
     state_variable.set("Software State: " + str(cansat_recent[15]))
 
@@ -273,12 +273,17 @@ while not stop:
         voltage_values.clear()
 
         # Loop through sp1 data and add to arrays for graphing
+        packets_received_sp1 = 0
         for line in data_sp1:
             # Catch empty line
             if len(line) == 0:
                 continue
 
+            # Split the data
             data = line.replace("\n", " ").split(",")
+
+            # Counter for packets received
+            packets_received_sp1 += 1
 
             # Grab values from the data
             time_values.append(data[1])  # Mission time
@@ -306,15 +311,12 @@ while not stop:
         # Grab the most recent data from the sp1 datafile
         sp1_recent = data_sp1[len(data_sp1) - 1].replace('\n', '').split(',')
 
-        # Check for new packets
-        if int(sp1_recent[2]) != packet_received_sp1:
-            # Check if the most recent packet was expected
-            if (int(packet_received_sp1) + 1) != int(sp1_recent[2]):
-                packets_lost_sp1 += int(sp1_recent[2]) - (int(packet_received_sp1) + 1)
-            packet_received_sp1 = int(sp1_recent[2])
+        # Count missing packets
+        if int(packets_received_sp1) != int(sp1_recent[2]):
+            packets_lost_sp1 = int(sp1_recent[2]) - int(packets_received_sp1)
 
         # Update SP1 labels
-        packets_sp1_received_variable.set("Packets Received - SP1: " + str(packet_received_sp1 - packets_lost_sp1))
+        packets_sp1_received_variable.set("Packets Received - SP1: " + str(packets_received_sp1 - packets_lost_sp1))
         packets_sp1_lost_variable.set("Packets Lost - SP1: " + str(packets_lost_sp1))
 
     # Create data sets from sp2 data
@@ -329,12 +331,17 @@ while not stop:
         voltage_values.clear()
 
         # Loop through sp2 data and add to arrays for graphing
+        packets_received_sp2 = 0
         for line in data_sp2:
             # Catch empty line
             if len(line) == 0:
                 continue
 
+            # Split the data
             data = line.replace("\n", " ").split(",")
+
+            # Counter for packets received
+            packets_received_sp2 += 1
 
             # Grab values from the data
             time_values.append(data[1])  # Mission time
@@ -362,19 +369,19 @@ while not stop:
         # Grab the most recent data from the sp2 datafile
         sp2_recent = data_sp2[len(data_sp2) - 1].replace('\n', '').split(',')
 
-        # Check for new packets
-        if int(sp2_recent[2]) != packet_received_sp2:
-            # Check if the most recent packet was expected
-            if (int(packet_received_sp2) + 1) != int(sp2_recent[2]):
-                packets_lost_sp2 += int(sp2_recent[2]) - (int(packet_received_sp2) + 1)
-            packet_received_sp2 = int(sp2_recent[2])
+        # Count missing packets
+        if int(packets_received_sp2) != int(sp2_recent[2]):
+            packets_lost_sp2 = int(sp2_recent[2]) - int(packets_received_sp2)
 
         # Update sp2 labels
-        packets_sp2_received_variable.set("Packets Received - SP2: " + str(packet_received_sp2 - packets_lost_sp2))
+        packets_sp2_received_variable.set("Packets Received - SP2: " + str(packets_received_sp2 - packets_lost_sp2))
         packets_sp2_lost_variable.set("Packets Lost - SP2: " + str(packets_lost_sp2))
 
     # Update the window
+    time = timeit.default_timer()
     graph_container.canvas.draw()
+    print("canvas.draw(): " + str(round(timeit.default_timer() - time, 4)))
+
     graph_container.canvas.flush_events()
     window.update()
 
