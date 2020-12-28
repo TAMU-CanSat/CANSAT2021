@@ -54,7 +54,7 @@ plots = [ax1, ax2, ax3, ax4]
 def animate(i):
     for plot_ID in range(0, 4):
         # Open the graph data
-        graph_data_file = open('datafiles\datafile{}.txt'.format(plot_ID), 'r')
+        graph_data_file = open('datafile{}.txt'.format(plot_ID), 'r')
         lines = graph_data_file.read().split('\n')
 
         # x and y data
@@ -85,7 +85,7 @@ def animate(i):
 
         # Clear the old graph and create the new plot
         plots[plot_ID].clear()
-        plots[plot_ID].plot(x_data, y_data, color="r")
+        plots[plot_ID].plot(x_data, y_data, "-o", color="r")
         plots[plot_ID].set_xlabel("x-values")
         plots[plot_ID].set_ylabel("y-values")
         plots[plot_ID].set_title("Title")
@@ -143,19 +143,19 @@ GPS_LONGITUDE_label = tkinter.Label(window, textvariable=GPS_LONGITUDE_VARIABLE,
 GPS_LONGITUDE_label.place(x=1500, y=910)
 
 # Run the animation
-ani = animation.FuncAnimation(fig, animate, interval=100)
+ani = animation.FuncAnimation(fig, animate, interval=500)
 
 # Schedule tasks and run the main window
 window.after(500, indicators)
 
 ### DEMO CODE
 def dummy1():
-    global SP1_RELEASED
+    global sp1_released
     SP1_RELEASED = True
 window.after(5000, dummy1)
 
 def dummy2():
-    global SP2_RELEASED
+    global sp2_released
     SP2_RELEASED = True
 window.after(15000, dummy2)
 
