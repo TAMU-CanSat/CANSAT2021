@@ -6,12 +6,16 @@ import time
 # Configuration items
 TEAM_ID = 2992
 
+# The datafiles directory should be under this directory
+root_directory = ""
 
 def write_data(teamid, quick, delay):
+    global root_directory
+
     # Open telemetry files for writing to clear them
-    telemetry_cansat = open("../datafiles/Flight_" + str(teamid) + "_C.csv", 'w')
-    telemetry_sp1 = open("../datafiles/Flight_" + str(teamid) + "_SP1.csv", 'w')
-    telemetry_sp2 = open("../datafiles/Flight_" + str(teamid) + "_SP2.csv", 'w')
+    telemetry_cansat = open(root_directory + "datafiles/Flight_" + str(teamid) + "_C.csv", 'w')
+    telemetry_sp1 = open(root_directory + "datafiles/Flight_" + str(teamid) + "_SP1.csv", 'w')
+    telemetry_sp2 = open(root_directory + "datafiles/Flight_" + str(teamid) + "_SP2.csv", 'w')
 
     # Close the files
     telemetry_cansat.close()
@@ -19,7 +23,7 @@ def write_data(teamid, quick, delay):
     telemetry_sp2.close()
 
     # Count the number of lines in datafile_cansat to provide a readout on the console
-    datafile_cansat = open("../datafiles/Dummy_" + str(teamid) + "_C.csv", 'r')
+    datafile_cansat = open(root_directory + "datafiles/Dummy_" + str(teamid) + "_C.csv", 'r')
     lines = -1
     lines_processed = 0
     for line in datafile_cansat:
@@ -31,9 +35,9 @@ def write_data(teamid, quick, delay):
         time.sleep(delay)
 
     # Open data(dummy) files for reading
-    datafile_cansat = open("../datafiles/Dummy_" + str(teamid) + "_C.csv", 'r')
-    datafile_sp1 = open("../datafiles/Dummy_" + str(teamid) + "_SP1.csv", 'r')
-    datafile_sp2 = open("../datafiles/Dummy_" + str(teamid) + "_SP2.csv", 'r')
+    datafile_cansat = open(root_directory + "datafiles/Dummy_" + str(teamid) + "_C.csv", 'r')
+    datafile_sp1 = open(root_directory + "datafiles/Dummy_" + str(teamid) + "_SP1.csv", 'r')
+    datafile_sp2 = open(root_directory + "datafiles/Dummy_" + str(teamid) + "_SP2.csv", 'r')
 
     # Dump the headers from each datafile (They wouldn't be present in the competition csv)
     datafile_cansat.readline()
@@ -47,9 +51,9 @@ def write_data(teamid, quick, delay):
     # Begin writing to the telemetry files
     for cansat_line in datafile_cansat:
         # Open the telemetry files
-        telemetry_cansat = open("../datafiles/Flight_" + str(teamid) + "_C.csv", 'a')
-        telemetry_sp1 = open("../datafiles/Flight_" + str(teamid) + "_SP1.csv", 'a')
-        telemetry_sp2 = open("../datafiles/Flight_" + str(teamid) + "_SP2.csv", 'a')
+        telemetry_cansat = open(root_directory + "datafiles/Flight_" + str(teamid) + "_C.csv", 'a')
+        telemetry_sp1 = open(root_directory + "datafiles/Flight_" + str(teamid) + "_SP1.csv", 'a')
+        telemetry_sp2 = open(root_directory + "datafiles/Flight_" + str(teamid) + "_SP2.csv", 'a')
 
         # Write the cansat line to the datafile for the cansat
         telemetry_cansat.write(cansat_line)
