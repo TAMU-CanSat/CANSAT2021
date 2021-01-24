@@ -10,6 +10,7 @@ import os
 # Performance profiling
 import timeit
 
+# TODO Add a quit button which exports the plots
 
 #################################################################
 
