@@ -36,11 +36,11 @@ COLOR_SP2 = "#ff6361"
 WINDOW_WIDTH = 1800
 WINDOW_HEIGHT = 975
 WINDOW_BACKGROUND_COLOR = "#a2a7ab"
+ICON_FILEPATH = "misc/icon.png"
 
 # TODO Pull TEAM_ID from a .env file, carry changes across all files
 # Other config
 TEAM_ID = 2992
-ICON_FILEPATH = "misc/icon.png"
 
 #################################################################
 
