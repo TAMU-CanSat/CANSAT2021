@@ -210,6 +210,7 @@ while not stop:
     gps_lat = []
     gps_long = []
 
+    # TODO Add capability to handle empty/invalid data
     # Fill out the data sets from the cansat data
     packets_received_cansat = 0
     for line in data_cansat:
