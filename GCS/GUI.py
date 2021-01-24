@@ -20,6 +20,7 @@ GRAPH_STYLE = "ggplot"  # Reference: https://matplotlib.org/3.2.1/gallery/style_
 GRAPH_LINE_STYLE = "-o"
 GRAPH_MAX_TICKS_X = 6
 
+# TODO Consider using Google Maps API to dynamically grab map image/create external script for that task
 # GPS graph configuration
 GPS_IMAGE_FILEPATH = "misc/map8.png"
 GPS_BOTTOM_LEFT = [30.610252837146604, -96.355542911837]  # Coordinates of bottom left corner of map image
@@ -35,6 +36,7 @@ WINDOW_WIDTH = 1800
 WINDOW_HEIGHT = 975
 WINDOW_BACKGROUND_COLOR = "#a2a7ab"
 
+# TODO Pull TEAM_ID from a .env file, carry changes across all files
 # Other config
 TEAM_ID = 2992
 ICON_FILEPATH = "misc/icon.png"
@@ -380,6 +382,8 @@ while not stop:
     # Update the window
     time = timeit.default_timer()
     graph_container.canvas.draw()
+
+    # Performance profiling
     print("canvas.draw(): " + str(round(timeit.default_timer() - time, 4)))
 
     graph_container.canvas.flush_events()
