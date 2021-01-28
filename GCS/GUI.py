@@ -38,12 +38,17 @@ WINDOW_HEIGHT = 975
 WINDOW_BACKGROUND_COLOR = "#a2a7ab"
 ICON_FILEPATH = "misc/icon.png"
 
-# TODO Pull TEAM_ID from a .env file, carry changes across all files
+# TODO Pull TEAM_ID, icon, etc from a .env file, carry changes across all files
 # Other config
 TEAM_ID = 2992
 
 #################################################################
+# TODO Print important config options (ex. TEAM_ID, GPS image file name)
+# Print configuration options for user clarity
 
+
+
+#################################################################
 # Sets the matplotlib style
 style.use(GRAPH_STYLE)
 
