@@ -15,6 +15,7 @@ import timeit
 
 #################################################################
 # Configuration items
+# TODO Pull TEAM_ID, icon, etc from a .env file, carry changes across all files
 TEAM_ID = 2992
 
 # Disable before real flights to prevent operator error
@@ -39,7 +40,15 @@ WINDOW_HEIGHT = 800
 WINDOW_BACKGROUND_COLOR = "#a2a7ab"
 ICON_FILEPATH = "misc/icon.png"
 #################################################################
+# Print configuration options for user clarity
+print("Configuration options:")
+print("Team ID = {}".format(TEAM_ID))
+print("Serial Port = {}".format(PORT))
+print("TEST MODE =", TEST_MODE)
+print("SIMULATION MODE ALLOWED =", SIM_ALLOWED)
+print("SAFETY BUTTONS ENABLED =", SAFETY_BUTTONS)
 
+#################################################################
 # Setup the tkinter window
 window = tkinter.Tk()
 window.pack_propagate(0)
