@@ -16,7 +16,7 @@ import timeit
 #################################################################
 # Configuration items
 # TODO Pull TEAM_ID, icon, etc from a .env file, carry changes across all files
-TEAM_ID = 2992
+TEAM_ID = 2743
 
 # Disable before real flights to prevent operator error
 SIM_ALLOWED = True
@@ -119,6 +119,7 @@ def R_SP2():
     enqueue_command(command)
 
 
+# TODO Add command buttons for science payload transmission on/off
 # Setup command buttons
 button_CX_ON = tkinter.Button(text="(CX) Telemetry On", fg="black", padx=20, pady=20, height=1, width=20, command=CX_ON)
 button_CX_OFF = tkinter.Button(text="(CX) Telemetry Off", fg="black", padx=20, pady=20, height=1, width=20, command=CX_OFF)

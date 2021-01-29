@@ -40,7 +40,7 @@ ICON_FILEPATH = "misc/icon.png"
 
 # TODO Pull TEAM_ID, icon, etc from a .env file, carry changes across all files
 # Other config
-TEAM_ID = 2992
+TEAM_ID = 2743
 
 #################################################################
 # TODO Print important config options (ex. TEAM_ID, GPS image file name)
