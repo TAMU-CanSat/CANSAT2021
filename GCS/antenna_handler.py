@@ -322,6 +322,7 @@ def secondsSinceEpoch():
 
 
 # TODO Write this function, determine best reading mode
+# Note: each telemetry transmission is concluded by a carriage return character.
 def read_serial():
     global CANSAT
     print("N/A")
@@ -336,7 +337,6 @@ def write_serial(command):
 
 
 # TODO Implement simulation mode (SIMP) functionality
-
 # Dummy values for PDR
 strvar_lastSent.set("Last command sent: CMD,2992,CX,ON")
 strvar_lastReceived.set("Last command echo: CMD,2992,CX,ON")
