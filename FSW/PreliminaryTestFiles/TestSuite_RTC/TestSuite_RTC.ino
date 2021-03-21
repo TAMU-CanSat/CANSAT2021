@@ -1,3 +1,5 @@
+#include <RTClib.h>
+
 // Test suite for the real time clock, should be relatively simple w/ the RTC library
 
 // TODO I'm not 100% sure this code will work "as is" with the teensy board, depends on I2C compatibility I guess.
