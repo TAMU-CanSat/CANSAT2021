@@ -4,7 +4,7 @@
 import time
 
 # Configuration items
-TEAM_ID = 2992
+TEAM_ID = 2743
 
 # The datafiles directory should be under this directory
 ROOT_DIRECTORY = "../"
