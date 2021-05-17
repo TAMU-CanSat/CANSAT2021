@@ -1,20 +1,23 @@
 // Compiler flags
-#define SERIAL true
+#define SERIAL_DEBUG true
 
 // Libraries
 #include <EEPROM.h>
 #include <Wire.h>
+#include <Servo.h>
 
 // Hardware libraries
 #include <RTClib.h>
 #include <Adafruit_BMP280.h>
 #include <Adafruit_GPS.h>
-
+#include <XBee.h>
 
 // Sensors/Hardware declarations
 RTC_PCF8523 rtc;
 Adafruit_BMP280 bmp;
 Adafruit_GPS gps(&Wire);
+XBee xbee_gcs;
+XBee xbee_payload;
 
 
 // Structs
@@ -54,18 +57,23 @@ unsigned int  packet_count;
 unsigned int  sp1_packet_count;
 unsigned int  sp2_packet_count;
 
-GPS_struct GPS_data;
+GPS_struct    GPS_data;
 
+float altitude;
+
+// Other variables
+short state_transition_tracker        = 0;  // Used to track cycles for transition points between states
+short state_transition_tracker_state  = -1;
 
 void setup() {
-#if SERIAL
+#if SERIAL_DEBUG
   Serial.begin(9600);
   while (!Serial);
 #endif
   
 // RTC init
 if (!rtc.begin()) {
-    #if SERIAL
+    #if SERIAL_DEBUG
       Serial.println("INIT FAILED: RTC.BEGIN() RETURNED FALSE");
       Serial.flush();
     #endif
@@ -107,15 +115,18 @@ EEPROM.get(ADDR_sp2_packet_count, sp2_packet_count);
 
 // Init sensors if we're waiting for launch or landed
 if (software_state != LAUNCH_WAIT && software_state != LANDED){
-  //TODO BMP
-
-
-  //TODO MPU (?)
-
+  // BMP
+    if (!bmp.begin()) {
+    #if SERIAL_DEBUG
+      Serial.println("INIT FAILED: BMP.BEGIN() RETURNED FALSE");
+      Serial.flush();
+    #endif
+    abort();
+  }
 
   // GPS
   if (!gps.begin(0x10)) {
-    #if SERIAL
+    #if SERIAL_DEBUG
       Serial.println("INIT FAILED: GPS.BEGIN() RETURNED FALSE");
       Serial.flush();
     #endif
@@ -131,17 +142,55 @@ if (software_state != LAUNCH_WAIT && software_state != LANDED){
 void loop() {
 switch (software_state){
 case LAUNCH_WAIT:
-
-
-
-
+  // Do nothing, wait for XBee command 'CXON'
+  return;
 
 break;
 case ASCENT_LAUNCHPAD:
+  // Check the transition tracker, update accordingly
+  if (state_transition_tracker_state == -1){
+    // Just initialized, update to 0, set current altitude
+    state_transition_tracker_state = 0;
+    altitude = get_altitude();
+    state_transition_tracker = altitude;
+    
+  } else if (state_transition_tracker_state == 0){
+    // State 0, check for rapidly increasing altitude over time
+    short new_altitude = get_altitude();
+    if (new_altitude > altitude + 5){
+      state_transition_tracker += 1;
 
+      // If we've seen rapidly increasing altitude for 3 seconds, move on to the next state
+      if (state_transition_tracker == 3){
+        state_transition_tracker_state = 1;
+        state_transition_tracker = 0;
+      }
+    }
 
+    altitude = new_altitude;  // Update altitude
+    
+  } else if (state_transition_tracker_state == 1){
+    // State 1, check for decreasing altitude over time
+    short new_altitude = get_altitude();
+    if (new_altitude < altitude - 1){
+      state_transition_tracker += 1;
 
+      // If we've seen decreasing altitude for 3 seconds, reset trackers and change software state
+      if (state_transition_tracker == 3){
+        state_transition_tracker_state = -1;
+        state_transition_tracker = -1;
 
+        // Update software state
+        software_state = DESCENT;
+        EEPROM.write(ADDR_software_state, software_state);
+      }
+    }
+
+    altitude = new_altitude;  // Update altitude
+  }
+
+  
+  send_packet_gcs();
 
 break;
 case DESCENT:
@@ -152,14 +201,21 @@ case DESCENT:
 
 break;
 case SP1_RELEASE:
-
+  if (!sp1_released){
+    release_sp1();
+    
+  }
 
 
 
 
 break;
 case SP2_RELEASE:
-
+  if (!sp2_released){
+    release_sp2();
+    sp2_released = true;
+    EEPROM.write(ADDR_sp2_released, 1);
+  }
 
 
 
@@ -174,15 +230,18 @@ case LANDED:
 
 break;
 
+// Mission time is set before launch, so we only worry about it in the Ascent/Launchpad state
 if (software_state != LAUNCH_WAIT){
   // TODO Update time stuff
+
+  
 }
 }}
 
 
 
 
-Time get_time(){
+Time get_rtc_time(){
   Time time_info;
   DateTime now = rtc.now();
   
@@ -224,14 +283,14 @@ GPS_struct get_gps(){
   gps_info.latitude = gps.latitude;
   gps_info.longitude = gps.longitude;
   gps_info.altitude = gps.altitude;
-  gps_info.sats = (byte)gps.satellites;
+  gps_info.sats = (byte)(unsigned int)gps.satellites;  // We do this double conversion to avoid signing issues
 
   return gps_info;
 }
 
 float get_voltage(){
   float voltage;
-
+  // TODO Work with Logan to determine which pins need to be read and what equations need to be used
   return voltage;
 }
 
@@ -239,7 +298,7 @@ float get_voltage(){
 void release_sp1(bool confirm){
   if (confirm){
     //TODO Release payload 1
-    return;
+
   }
 }
 
@@ -247,6 +306,12 @@ void release_sp1(bool confirm){
 void release_sp2(bool confirm){
   if (confirm){
     //TODO Release payload 2
-    return;
+    
   }
+}
+
+// Polls sensors and global variables before constructing and sending a new packet to GCS
+void send_packet_gcs(){
+  
+
 }
