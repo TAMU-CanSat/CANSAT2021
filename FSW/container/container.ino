@@ -57,8 +57,6 @@ unsigned int  packet_count;
 unsigned int  sp1_packet_count;
 unsigned int  sp2_packet_count;
 
-GPS_struct    GPS_data;
-
 float altitude;
 
 // Other variables
@@ -140,8 +138,24 @@ if (software_state != LAUNCH_WAIT && software_state != LANDED){
 // ---------------------
 
 void loop() {
+// Check for new packets received by the XBee, handle them as needed
+XBee_receive();
+
+// Mission time is set before launch, so we only worry about it past LAUNCH_WAIT
+if (software_state != LAUNCH_WAIT){
+  // TODO Update time from RTC
+
+  // TODO Check if it's time to send a packet, if not return
+
+}
+
+
 switch (software_state){
 case LAUNCH_WAIT:
+  #if SERIAL_DEBUG
+  Serial.println("DEBUG: LAUNCH_WAIT")
+  #endif
+  
   // Do nothing, wait for XBee command 'CXON'
   return;
 
@@ -177,12 +191,11 @@ case ASCENT_LAUNCHPAD:
 
       // If we've seen decreasing altitude for 3 seconds, reset trackers and change software state
       if (state_transition_tracker == 3){
-        state_transition_tracker_state = -1;
-        state_transition_tracker = -1;
+        state_transition_tracker_state = 0;
+        state_transition_tracker = 0;
 
         // Update software state
-        software_state = DESCENT;
-        EEPROM.write(ADDR_software_state, software_state);
+        update_software_state(DESCENT);
       }
     }
 
@@ -194,48 +207,80 @@ case ASCENT_LAUNCHPAD:
 
 break;
 case DESCENT:
+  // If past 500m, transition to SP1_RELEASE
+  altitude = get_altitude();
+  if (altitude <= 500){
+    update_software_state(SP1_RELEASE);
+  }
 
 
-
-
+  send_packet_gcs();
 
 break;
 case SP1_RELEASE:
   if (!sp1_released){
-    release_sp1();
-    
+    release_sp1(false);
+    sp2_released = true;
+    EEPROM.write(ADDR_sp2_released, 1);
+  } else {
+    // Failsafe in the event of a poorly timed power outage
+    release_sp1(false);
+  }
+
+  // If past 400m, transition to SP2_RELEASE
+  altitude = get_altitude();
+  if (altitude <= 400){
+    update_software_state(SP2_RELEASE);
   }
 
 
-
+  send_packet_gcs();
 
 break;
 case SP2_RELEASE:
   if (!sp2_released){
-    release_sp2();
+    release_sp2(false);
     sp2_released = true;
     EEPROM.write(ADDR_sp2_released, 1);
+  } else {
+    // Failsafe in the event of a poorly timed power outage
+    release_sp2(false);
   }
 
+  // Track altitude, watch for landing with assumed pressure flucutations of +- 3m
+  short new_altitude = get_altitude();
+  if (new_altitude < altitude + 3 && new_altitude > altitude - 3){
+    state_transition_tracker += 1;
+
+    // If we've seen negligible change over 3 seconds, move on to the next state
+    if (state_transition_tracker == 3){
+      update_software_state(LANDED);
+    }
+  }
+
+  altitude = new_altitude;  // Update altitude
 
 
+
+  send_packet_gcs();
 
 break;
 case LANDED:
+  if (state_transition_tracker_state == 0){
+    // TODO Standby all sensors
 
 
+    state_transition_tracker_state = 3;
+  }
 
+  #if SERIAL_DEBUG
+  Serial.println("The eagle has landed");
+  #endif
 
-
+  // Delay for an extended period of time
+  delay(10000);
 
 break;
-
-// Mission time is set before launch, so we only worry about it in the Ascent/Launchpad state
-if (software_state != LAUNCH_WAIT){
-  // TODO Update time stuff
-
-  
-}
 }}
 
 
@@ -252,17 +297,23 @@ Time get_rtc_time(){
   return time_info;
 }
 
-
 float get_temperature(){
   return bmp.readTemperature();
 }
 
-float get_pressure(){
-  return bmp.readPressure();
-}
-
 float get_altitude(){
-  return bmp.readAltitude(SEALEVEL_HPA);
+  // If sim_active (mode), return simulated data
+  if (mode){
+    // Modified code from Adafruit_BMP280.cpp/readAltitude()
+    float pressure = sim_pressure;
+    pressure /= 100;
+    float alt = 44330 * (1.0 - pow(pressure / SEALEVEL_HPA, 0.1903));
+
+    return alt;
+    
+  } else {
+    return bmp.readAltitude(SEALEVEL_HPA);
+  }
 }
 
 GPS_struct get_gps(){
@@ -290,28 +341,40 @@ GPS_struct get_gps(){
 
 float get_voltage(){
   float voltage;
-  // TODO Work with Logan to determine which pins need to be read and what equations need to be used
+  // TODO Determine correct formuals for voltage reading with their circuit (waiting to hear back from EE)
   return voltage;
 }
 
 
 void release_sp1(bool confirm){
   if (confirm){
-    //TODO Release payload 1
+    //TODO Release payload 1 (waiting to hear back from EE on servo power & pins)
 
+
+    //TODO Send payload SP1XON
   }
 }
 
 
 void release_sp2(bool confirm){
   if (confirm){
-    //TODO Release payload 2
-    
+    //TODO Release payload 2 (waiting to hear back from EE on servo power & pins)
+
+
+    //TODO Send payload SP2XON
   }
 }
 
+void update_software_state(const byte newState){
+  software_state = newState;
+  EEPROM.write(ADDR_software_state, newState);
+}
+
+
 // Polls sensors and global variables before constructing and sending a new packet to GCS
 void send_packet_gcs(){
-  
+  GPS_struct GPS = get_gps();
+
+  // TODO: XBee stuff
 
 }
