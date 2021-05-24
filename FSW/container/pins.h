@@ -1,0 +1,10 @@
+const byte XBEE_GCS_RX = 		0;
+const byte XBEE_GCS_TX = 		1;
+const byte SERVO_PWM = 			6;
+const byte XBEE_PAYLOAD_RX = 	7;
+const byte XBEE_PAYLOAD_TX = 	8;
+const byte GPS_TX = 			14;
+const byte GPS_RX = 			15;
+const byte GPS_ENABLE = 		16;
+const byte I2C_SDA = 			18;
+const byte I2C_SCL = 			19;
