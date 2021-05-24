@@ -7,9 +7,12 @@ const short ADDR_time_ss = 				1  + EEPROM_OFFSET;
 const short ADDR_time_mm = 				2  + EEPROM_OFFSET;
 const short ADDR_time_hh = 				3  + EEPROM_OFFSET;
 const short ADDR_packet_count = 		4  + EEPROM_OFFSET;
-const short ADDR_mission_time_ss = 		8  + EEPROM_OFFSET;
-const short ADDR_mission_time_mm = 		9  + EEPROM_OFFSET;
-const short ADDR_mission_time_hh = 		10 + EEPROM_OFFSET;
+
+// These aren't used since they'd be redundant over the RTC
+// const short ADDR_mission_time_ss = 		8  + EEPROM_OFFSET;
+// const short ADDR_mission_time_mm = 		9  + EEPROM_OFFSET;
+// const short ADDR_mission_time_hh = 		10 + EEPROM_OFFSET;
+
 const short ADDR_mode = 				24 + EEPROM_OFFSET;
 const short ADDR_sim_enabled = 			25 + EEPROM_OFFSET;
 const short ADDR_sim_pressure = 		26 + EEPROM_OFFSET;
