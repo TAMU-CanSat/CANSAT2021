@@ -593,6 +593,7 @@ void loop() {
       }
     case DESCENT:
       {
+        // TODO: ONLY TRANSITION IF PAST ALTITUDE FOR > 3 cycles
         // If past 500m, transition to SP1_RELEASE
         altitude = get_altitude();
         if (altitude <= 500) {
@@ -615,6 +616,7 @@ void loop() {
           release_sp1(false);
         }
 
+        // TODO: ONLY TRANSITION IF PAST ALTITUDE FOR > 3 cycles
         // If past 400m, transition to SP2_RELEASE
         altitude = get_altitude();
         if (altitude <= 400) {
