@@ -4,6 +4,7 @@
 # Misc imports
 import tkinter
 import serial
+import threading
 
 # Time handling imports
 from datetime import datetime
@@ -15,11 +16,11 @@ import timeit
 
 #################################################################
 # Configuration items
-# TODO Pull TEAM_ID, icon, etc from a .env file, carry changes across all files
 TEAM_ID = 2743
 
 # Disable before real flights to prevent operator error
 SIM_ALLOWED = True
+SIMP_FILE = "datafiles/simp_example.csv"
 
 # Disable to disable safety buttons
 SAFETY_BUTTONS = True
@@ -46,6 +47,7 @@ print("Team ID = {}".format(TEAM_ID))
 print("Serial Port = {}".format(PORT))
 print("TEST MODE =", TEST_MODE)
 print("SIMULATION MODE ALLOWED =", SIM_ALLOWED)
+print("SIMP FILE =", SIMP_FILE)
 print("SAFETY BUTTONS ENABLED =", SAFETY_BUTTONS)
 
 #################################################################
@@ -94,9 +96,15 @@ def SIM_ENABLE():
     enqueue_command(command)
 
 
+simp_thread = None
 def SIM_ACTIVATE():
     command = "CMD," + str(TEAM_ID) + ",SIM,ACTIVATE"
     enqueue_command(command)
+
+    # Start simp thread
+    global simp_thread
+    simp_thread.start()
+
 
 
 def SIM_DISABLE():
@@ -119,7 +127,6 @@ def R_SP2():
     enqueue_command(command)
 
 
-# TODO Add command buttons for science payload transmission on/off
 # Setup command buttons
 button_CX_ON = tkinter.Button(text="(CX) Telemetry On", fg="black", padx=20, pady=20, height=1, width=20, command=CX_ON)
 button_CX_OFF = tkinter.Button(text="(CX) Telemetry Off", fg="black", padx=20, pady=20, height=1, width=20, command=CX_OFF)
@@ -300,6 +307,7 @@ time_lastReceived = 0  # Stored in seconds since epoch
 # Attempt to open the serial port
 num_attempts = 5
 connected = False
+CANSAT = None
 while num_attempts > 0 and not TEST_MODE:
     try:
         CANSAT = serial.Serial(PORT, BAUD, parity=PARITY, stopbits=STOPBITS, timeout=TIMEOUT)
@@ -310,33 +318,52 @@ while num_attempts > 0 and not TEST_MODE:
         print("WARNING: SerialException when trying to open serial port {}, will attempt {} more times".format(PORT, num_attempts))
         sleep(1)
 
-# TODO Implement TEST_MODE serial functions using dummy serial class (and, you know, write that class)
-
 if not connected and not TEST_MODE:
     print("ERROR: Could not open serial port. Exiting.")
     exit()
+
 
 # Helper functions
 def secondsSinceEpoch():
     return timegm(gmtime())
 
 
-# TODO Write this function, determine best reading mode
-# Note: each telemetry transmission is concluded by a carriage return character.
+# Note: each telemetry transmission is concluded by a \n
 def read_serial():
     global CANSAT
-    print("N/A")
+
+    incoming_packet = CANSAT.read_until(expected='\n')
+    if incoming_packet == b'':
+        return None
+    else:
+        return incoming_packet.decode("utf-8")
 
 
-# TODO Write this function, should be a straightforward blocking read
 def write_serial(command):
     global CANSAT, lastCommandSent
     lastCommandSent = command
-    print("N/A")
+    CANSAT.write(command)
 
 
+# TODO Write process_packet
+def process_packet(packet):
+    print("WRITE ME")
 
-# TODO Implement simulation mode (SIMP) functionality
+
+def simp():
+    global command_queue
+    file = open(SIMP_FILE, 'r')
+    lines = file.readlines()
+    file.close()
+    for line in lines:
+        if line.startswith('#') or line == '' or line == '\n':
+            continue
+
+        enqueue_command(line.replace('$', str(TEAM_ID)))
+        sleep(1)
+
+
+simp_thread = threading.Thread(target=simp, args=())
 # Dummy values for PDR
 # strvar_lastSent.set("Last command sent: CMD,2992,CX,ON")
 # strvar_lastReceived.set("Last command echo: CMD,2992,CX,ON")
@@ -345,17 +372,17 @@ def write_serial(command):
 # TODO Fill in main function
 # Main function, runs a loop for receiving packets and sending commands
 def main():
+    global command_queue
     while True:
-        # Read serial, check for full packet
-        # If packet is full, continue, else, read until full packet or timeout
+        # If we have commands to send, send them
+        while len(command_queue) != 0:
+            write_serial(command_queue.pop(0))
+
+        packet = read_serial()
+        if packet is not None:
+            process_packet(packet)
 
         # Determine packet type, write to appropriate CSV
-
-        # Check echo against last command sent
-        # If two packets have been received since the command was sent and the echo hasn't updated, send again
-        # Else if queue is populated, send next command in queue
-
-        # If the proper amount of time has passed since the last command, send the next SIMP
 
         # Update labels
         # strvar_lastSent.set("Last command sent: " + )
