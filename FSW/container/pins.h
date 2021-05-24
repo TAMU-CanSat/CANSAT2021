@@ -1,3 +1,7 @@
+# define XBEE_GCS_SERIAL Serial1
+# define XBEE_PAYLOAD_SERIAL Serial2
+# define GPS_SERIAL Serial3
+
 const byte XBEE_GCS_RX = 		0;
 const byte XBEE_GCS_TX = 		1;
 const byte SERVO_PWM = 			6;
