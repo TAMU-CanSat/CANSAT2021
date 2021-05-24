@@ -338,9 +338,9 @@ def write_serial(command):
 
 # TODO Implement simulation mode (SIMP) functionality
 # Dummy values for PDR
-strvar_lastSent.set("Last command sent: CMD,2992,CX,ON")
-strvar_lastReceived.set("Last command echo: CMD,2992,CX,ON")
-strvar_timeSinceLastPacket.set("Last packet received: 1s ago")
+# strvar_lastSent.set("Last command sent: CMD,2992,CX,ON")
+# strvar_lastReceived.set("Last command echo: CMD,2992,CX,ON")
+# strvar_timeSinceLastPacket.set("Last packet received: 1s ago")
 
 # TODO Fill in main function
 # Main function, runs a loop for receiving packets and sending commands
