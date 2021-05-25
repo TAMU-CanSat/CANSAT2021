@@ -307,6 +307,11 @@ void XBee_receive() {
     char c;
     while (XBEE_PAYLOAD_SERIAL.available()){
       c = XBEE_PAYLOAD_SERIAL.read();
+
+#if SERIAL_DEBUG
+      Serial.println("RECEIVED: C");
+#endif
+      
       if (c != '\n'){
         workingString += c;
       } else {
@@ -359,7 +364,7 @@ void XBee_receive() {
       
       } else if (workingString.startsWith("ST")){
         workingString.remove(3);
-        cmd_echo = 'ST' + workingString;  // Out of place command echo to save on formatting
+        cmd_echo = "ST" + workingString;  // Out of place command echo to save on formatting
         
         // Form a new datetime object from the CMD, pass to the rtc
         DateTime stime = DateTime(2021, 1, 1, atoi(workingString.substring(0, 1).c_str()), atoi(workingString.substring(3, 4).c_str()), atoi(workingString.substring(6, 7).c_str()));
@@ -473,7 +478,7 @@ void setup() {
   sp1_released          = EEPROM.read(ADDR_sp1_released);
   sp2_released          = EEPROM.read(ADDR_sp2_released);
 
-  EEPROM.get(ADDR_sim_pressure, sim_pressure);
+  EEPROM.get(ADDR_sim_pressure,     sim_pressure);
   EEPROM.get(ADDR_packet_count,     packet_count);
   EEPROM.get(ADDR_sp1_packet_count, sp1_packet_count);
   EEPROM.get(ADDR_sp2_packet_count, sp2_packet_count);
