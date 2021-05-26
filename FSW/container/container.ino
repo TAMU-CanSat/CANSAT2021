@@ -309,7 +309,7 @@ void XBee_receive() {
       c = XBEE_PAYLOAD_SERIAL.read();
 
 #if SERIAL_DEBUG
-      Serial.println("RECEIVED: C");
+      Serial.println("RECEIVED: " + c);
 #endif
       
       if (c != '\n'){
@@ -445,23 +445,49 @@ void setup() {
   while (!Serial);
 #endif
 
-  // RTC init
-  if (!rtc.begin()) {
-#if SERIAL_DEBUG
-    Serial.println("INIT FAILED: RTC.BEGIN() RETURNED FALSE");
-    Serial.flush();
-#endif
-    abort();
-  }
-
+// REMOVE ME
+  Wire.begin();
+  Serial.println("WIRE BEGIN SUCCESS");
 
   // XBee init
   XBEE_GCS_SERIAL.begin(9600);
   XBEE_PAYLOAD_SERIAL.begin(9600);
 
+#if SERIAL_DEBUG
+      Serial.println("Waiting for XBEE GCS INIT");
+#endif
+  while (!XBEE_GCS_SERIAL);
+#if SERIAL_DEBUG
+      Serial.println("Waiting for XBEE PAYLOAD INIT");
+#endif
+  while (!XBEE_PAYLOAD_SERIAL);
+#if SERIAL_DEBUG
+      Serial.println("XBEE INIT COMPLETE");
+#endif
+
+  // TODO REMOVE ME
+  delay(3000);
+
+//  // RTC init
+//  if (!rtc.begin()) {
+//#if SERIAL_DEBUG
+//    Serial.println("INIT FAILED: RTC.BEGIN() RETURNED FALSE");
+//    Serial.flush();
+////      XBEE_GCS_SERIAL.write('1');
+//#endif
+//    abort();
+//  }
+
+#if SERIAL_DEBUG
+      Serial.println("RTC INIT COMPLETE");
+#endif
+
   // Servo init
   servo.attach(SERVO_PWM);
 
+#if SERIAL_DEBUG
+      Serial.println("SERVO ATTACHED");
+#endif
 
   // BEGIN READ EEPROM
   rtc_time_old.seconds  = EEPROM.read(ADDR_time_ss);
@@ -484,6 +510,12 @@ void setup() {
   EEPROM.get(ADDR_sp2_packet_count, sp2_packet_count);
   // END READ EEPROM
 
+#if SERIAL_DEBUG
+      Serial.println("EEPROM READ COMPLETE");
+      Serial.print("SOFTWARE_STATE: ");
+      Serial.println(software_state);
+#endif
+
   // Init GPS if we're not landed so it can get a fix asap
   if (software_state != LANDED) {
     // GPS
@@ -491,6 +523,7 @@ void setup() {
 #if SERIAL_DEBUG
       Serial.println("INIT FAILED: GPS.BEGIN() RETURNED FALSE");
       Serial.flush();
+//        XBEE_GCS_SERIAL.write('0');
 #endif
       abort();
     }
@@ -498,23 +531,38 @@ void setup() {
     gps.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);  // Set update interval
   }
 
+#if SERIAL_DEBUG
+      Serial.println("BMP INIT COMPLETE SUCCESSFULLY");
+      Serial.println("SETUP COMPLETE SUCCESSFULLY");
+#endif
+
   // Init sensors if we're waiting for launch or landed
-  if (software_state != LAUNCH_WAIT && software_state != LANDED) {
+  if (software_state != LANDED ) {//&& software_state != LAUNCH_WAIT) {
     // BMP
     if (!bmp.begin()) {
 #if SERIAL_DEBUG
       Serial.println("INIT FAILED: BMP.BEGIN() RETURNED FALSE");
       Serial.flush();
+//    XBEE_GCS_SERIAL.write('1');
 #endif
       abort();
     }
 
   }
+#if SERIAL_DEBUG
+      Serial.println("BMP INIT COMPLETE SUCCESSFULLY");
+      Serial.println("SETUP COMPLETE SUCCESSFULLY");
+#endif
+
 }
 
 // ---------------------
 
 void loop() {
+#if SERIAL_DEBUG
+      Serial.println("LOOP - TOP");
+#endif
+  
   // Check for new packets received by the XBee, handle them as needed
   XBee_receive();
 
@@ -541,6 +589,7 @@ void loop() {
       {
 #if SERIAL_DEBUG
         Serial.println("DEBUG: LAUNCH_WAIT");
+//          XBEE_GCS_SERIAL.write('7');
 #endif
 
         // Do nothing, wait for XBee command 'CXON'
