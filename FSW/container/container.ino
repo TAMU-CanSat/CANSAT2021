@@ -91,12 +91,10 @@ float get_temperature() {
 float get_altitude() {
   // If sim_active (mode), return simulated data
   if (mode) {
-    // Modified code from Adafruit_BMP280.cpp/readAltitude()
+    // Modified code from Adafruit_BMP388.cpp/readAltitude()
     float pressure = sim_pressure;
-    pressure /= 100;
-    float alt = 44330 * (1.0 - pow(pressure / SEALEVEL_HPA, 0.1903));
-
-    return alt;
+    float atmospheric = pressure / 100.0F;
+    return 44330.0 * (1.0 - pow(atmospheric / SEALEVEL_HPA, 0.1903));
 
   } else {
     return bmp.readAltitude(SEALEVEL_HPA);
@@ -286,7 +284,7 @@ void send_packet_gcs() {
   payload += String(sp1_packet_count) + "," + String(sp2_packet_count) + ",";
 
   // cmd echo
-  payload += cmd_echo;
+  payload += cmd_echo + "\n";
 
   // Send the packet
   XBEE_GCS_SERIAL.write(payload.c_str());
