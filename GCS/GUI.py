@@ -98,7 +98,6 @@ indicator_sp1.place(x=1200, y=450)
 indicator_sp2.place(x=1200, y=535)
 
 # TODO Stylize labels
-# TODO Do the time values from the payloads also need to be displayed (probably)
 
 # Setup labels for mission time and gps time
 time_gps_variable = tkinter.StringVar()

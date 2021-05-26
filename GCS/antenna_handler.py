@@ -7,7 +7,7 @@ import serial
 import threading
 
 # Time handling imports
-from datetime import datetime
+from datetime import datetime, timezone
 from calendar import timegm
 from time import gmtime, sleep
 
@@ -29,7 +29,7 @@ SAFETY_BUTTONS = True
 TEST_MODE = True
 
 # Serial port configuration
-PORT = ""  # ex. COM5, COM6
+PORT = "COM3"  # ex. COM5, COM6
 BAUD = 9600  # Default 9600
 PARITY = "N"  # Default N
 STOPBITS = 1  # Default 1
@@ -49,12 +49,13 @@ print("TEST MODE =", TEST_MODE)
 print("SIMULATION MODE ALLOWED =", SIM_ALLOWED)
 print("SIMP FILE =", SIMP_FILE)
 print("SAFETY BUTTONS ENABLED =", SAFETY_BUTTONS)
+print()
 
 #################################################################
 # Setup the tkinter window
 window = tkinter.Tk()
 window.pack_propagate(0)
-window.wm_title("Command Palette v0.1")
+window.wm_title("Command Palette v0.7")
 window.configure(bg=WINDOW_BACKGROUND_COLOR)
 
 # Set tkinter window icon
@@ -86,8 +87,8 @@ def CX_OFF():
 
 
 def ST():
-    # TODO Setup to convert from timezone (configuration item) to UTC
-    command = "CMD," + str(TEAM_ID) + ",ST," + datetime.now().strftime('%H:%M:%S')
+    UTCNow = datetime.now(timezone.utc)
+    command = "CMD," + str(TEAM_ID) + ",ST," + UTCNow.strftime('%H:%M:%S')
     enqueue_command(command)
 
 
@@ -249,7 +250,6 @@ def safety_R_SP2():
         button_R_SP2.configure(state="disable")
 
 
-
 # Setup and place safety buttons
 if SAFETY_BUTTONS:
     button_safety_CX_ON = tkinter.Button(text="Enable", fg="black", padx=20, pady=20, height=1, width=4, command=safety_CX_ON)
@@ -300,9 +300,9 @@ label_timeSinceLastPacket.place(x=20, y=760)
 ################################################################################
 # Antenna communications
 # Variables
-lastCommandSent = "None"  # Populated with the last command sent to write_serial
-lastCommandReceived = "None"  # Populated with the last command echo
-time_lastReceived = 0  # Stored in seconds since epoch
+lastCommandSent = "DEFAULT"  # Populated with the last command sent to write_serial
+lastCommandReceived = "DEFAULT"  # Populated with the last command echo
+time_lastReceived = -1  # Stored in seconds since epoch
 
 # Attempt to open the serial port
 num_attempts = 5
@@ -330,24 +330,67 @@ def secondsSinceEpoch():
 
 # Note: each telemetry transmission is concluded by a \n
 def read_serial():
-    global CANSAT
+    if not TEST_MODE:
+        global CANSAT
 
-    incoming_packet = CANSAT.read_until(expected='\n')
-    if incoming_packet == b'':
-        return None
-    else:
-        return incoming_packet.decode("utf-8")
+        incoming_packet = CANSAT.read_until(expected='\n')
+        if incoming_packet == b'':
+            return None
+        else:
+            return incoming_packet.decode("utf-8")
 
 
 def write_serial(command):
-    global CANSAT, lastCommandSent
-    lastCommandSent = command
-    CANSAT.write(command)
+    if not TEST_MODE:
+        global CANSAT, lastCommandSent
+        lastCommandSent = command
+        CANSAT.write(command)
+        print("SENT COMMAND: " + command)
+        sleep(0.25)
+    else:
+        print("TEST_MODE: Command written: {}".format(command))
 
 
-# TODO Write process_packet
 def process_packet(packet):
-    print("WRITE ME")
+    global lastCommandReceived
+    print("PROCESSING PACKET: {}".format(packet))
+
+    # Split packet
+    split = packet.split(',')
+    print("SPLIT PACKET: {}".format(split))
+
+    # Determine packet type and write to file
+    type = None
+
+    if len(split) < 4:
+        print("WARNING: PACKET SPLIT LENGTH < 4, COULD NOT PROCESS")
+    else:
+        if split[3] == "C":
+            print("PACKET TYPE: CONTAINER, WRITING TO FILE")
+            type = 'C'
+            telemetry_cansat = open("datafiles/Flight_" + str(TEAM_ID) + "_C.csv", 'a')
+            telemetry_cansat.write(packet)
+            telemetry_cansat.close()
+        elif split[3] == "S1":
+            type = 'S1'
+            print("PACKET TYPE: PAYLOAD S1, WRITING TO FILE")
+            telemetry_sp1 = open("datafiles/Flight_" + str(TEAM_ID) + "_SP1.csv", 'a')
+            telemetry_sp1.write(packet)
+            telemetry_sp1.close()
+        elif split[3] == "S2":
+            type = 'S2'
+            print("PACKET TYPE: PAYLOAD S2, WRITING TO FILE")
+            telemetry_sp2 = open("datafiles/Flight_" + str(TEAM_ID) + "_SP2.csv", 'a')
+            telemetry_sp2.write(packet)
+            telemetry_sp2.close()
+        else:
+            print("WARNING: INVALID PACKET TYPE {}".format(split[3]))
+
+    # Find the command echo and store it
+    if type == "C" and len(split) >= 19:
+        lastCommandReceived = split[18]
+    elif (type == "S1" or type == "S2") and len(split) >= 9:
+        lastCommandReceived = split[8]
 
 
 def simp():
@@ -369,7 +412,6 @@ simp_thread = threading.Thread(target=simp, args=())
 # strvar_lastReceived.set("Last command echo: CMD,2992,CX,ON")
 # strvar_timeSinceLastPacket.set("Last packet received: 1s ago")
 
-# TODO Fill in main function
 # Main function, runs a loop for receiving packets and sending commands
 def main():
     global command_queue
@@ -378,16 +420,15 @@ def main():
         while len(command_queue) != 0:
             write_serial(command_queue.pop(0))
 
+        # Check for a packet, process as needed
         packet = read_serial()
         if packet is not None:
             process_packet(packet)
 
-        # Determine packet type, write to appropriate CSV
-
         # Update labels
-        # strvar_lastSent.set("Last command sent: " + )
-        # strvar_lastReceived.set("Last command echo: " + )
-        # strvar_timeSinceLastPacket.set("Last packet received: {}s ago".format())
+        strvar_lastSent.set("Last command sent: {}".format(lastCommandSent))
+        strvar_lastReceived.set("Last command echo: {}".format(lastCommandReceived))
+        strvar_timeSinceLastPacket.set("Last packet received: {}s ago".format(time_lastReceived))
 
         # Update the window
         window.update()
