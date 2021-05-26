@@ -647,13 +647,16 @@ void loop() {
       }
     case DESCENT:
       {
-        // TODO: ONLY TRANSITION IF PAST ALTITUDE FOR > 3 cycles
+
         // If past 500m, transition to SP1_RELEASE
         altitude = get_altitude();
         if (altitude <= 500) {
-          update_software_state(SP1_RELEASE);
+          state_transition_tracker += 1;
+          if (state_transition_tracker == 3){
+            state_transition_tracker = 0;
+            update_software_state(SP1_RELEASE);
+          }
         }
-
 
         send_packet_gcs();
 
@@ -670,11 +673,14 @@ void loop() {
           release_sp1(false);
         }
 
-        // TODO: ONLY TRANSITION IF PAST ALTITUDE FOR > 3 cycles
-        // If past 400m, transition to SP2_RELEASE
+        // If past 400m, transition to SP1_RELEASE
         altitude = get_altitude();
         if (altitude <= 400) {
-          update_software_state(SP2_RELEASE);
+          state_transition_tracker += 1;
+          if (state_transition_tracker == 3){
+            state_transition_tracker = 0;
+            update_software_state(SP2_RELEASE);
+          }
         }
 
 
