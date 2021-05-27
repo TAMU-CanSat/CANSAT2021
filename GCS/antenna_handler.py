@@ -5,6 +5,7 @@
 import tkinter
 import serial
 import threading
+import MQTT
 
 # Time handling imports
 from datetime import datetime, timezone
@@ -393,6 +394,9 @@ def process_packet(packet):
         lastCommandReceived = split[18]
     elif (type == "S1" or type == "S2") and len(split) >= 9:
         lastCommandReceived = split[8]
+
+    # Upload to MQTT
+    MQTT.MQTT_publish(packet)
 
 
 def simp():
