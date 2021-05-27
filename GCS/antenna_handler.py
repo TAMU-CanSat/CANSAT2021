@@ -395,6 +395,8 @@ def process_packet(packet):
     elif (type == "S1" or type == "S2") and len(split) >= 9:
         lastCommandReceived = split[8]
 
+    # TODO IF PAYLOAD PACKET, REMOVE VOLTAGE, COMMAND ECHO
+
     # Upload to MQTT
     MQTT.MQTT_publish(packet)
 

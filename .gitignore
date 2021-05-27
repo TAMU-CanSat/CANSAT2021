@@ -1,3 +1,4 @@
 .idea/
 GCS/datafiles/Flight_2743_*
 *.xlsx
+*.pyc

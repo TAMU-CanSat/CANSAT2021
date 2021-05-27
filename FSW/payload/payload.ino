@@ -1,3 +1,5 @@
+// NOTE-CRITICAL: SP1 COMPILER FLAG NEEDS TO BE TRUE WHEN COMPILING FOR SP1
+// AND FALSE WHEN COMPILING FOR SP2
 // Compiler flags
 #define SERIAL_DEBUG true
 #define SP1 true
@@ -5,6 +7,7 @@
 // Libraries
 #include <EEPROM.h>
 #include <Wire.h>
+#include <TimeLib.h>
 
 // Hardware libraries
 #include <Adafruit_BMP3XX.h>
@@ -25,6 +28,7 @@ struct Time {
 // Variable declarations
 Time          old_time;
 Time          mission_time;
+Time          end_transmission;
 
 byte          software_state = 0;
 
@@ -34,6 +38,8 @@ float altitude;
 float rotation_rate;
 
 String cmd_echo = "";
+
+short transition_tracker = 0;
 
 // Constants
 #include "memorymap.h"  // Includes addresses for EEPROM and Serial aliases
@@ -70,11 +76,10 @@ float get_rotation(){
 
 Time get_time() {
   Time time_info;
-  DateTime now = DateTime.now();
 
-  time_info.seconds = now.second();
-  time_info.minutes = now.minute();
-  time_info.hours   = now.hour();
+  time_info.seconds = second();
+  time_info.minutes = minute();
+  time_info.hours   = hour();
 
   return time_info;
 }
@@ -138,6 +143,25 @@ void update_software_state(const byte newState) {
   EEPROM.update(ADDR_software_state, newState);
 }
 
+
+void SetEndTransmission(){
+  Time now = get_time();
+  end_transmission.seconds = now.seconds;
+
+  if (now.minutes < 55){
+    end_transmission.minutes = now.minutes + 5;
+    end_transmission.hours = now.hours;
+  } else {
+    end_transmission.minutes = now.minutes - 55;
+    end_transmission.hours = now.hours + 1;
+  }
+
+  EEPROM.update(end_transmission_ss, end_transmission.seconds);
+  EEPROM.update(end_transmission_mm, end_transmission.minutes);
+  EEPROM.update(end_transmission_hh, end_transmission.hours);
+
+}
+
 void XBee_receive() {
   // STEP 1: Loop until terminator (\n) found || 100 ms pass (junk and start over)
   // STEP 2: Process, if payload packet forward on as is
@@ -158,23 +182,42 @@ void XBee_receive() {
       }
     }
 
+    #if SERIAL_DEBUG
+      Serial.print("PACKET RECEIVED: ");
+      Serial.println(workingString);
+    #endif
+
     // Validate a cmd string
     if (workingString.startsWith("CMD")){
       // Remove 'CMD,2743,' (9 chars) to determine cmd type
       workingString.remove(9);
 
-      #if SP1
-        if (workingString.startsWith("SP1X,ON")){
-          update_software_state(DEPLOYED);
-          cmd_echo = "SP1XON";
-        }
-      #else
-        if (workingString.startsWith("SP2X,ON")){
-          update_software_state(DEPLOYED);
-          cmd_echo = "SP2XON";
-        }
-      #endif
-    }
+    #if SP1
+      if (workingString.startsWith("SP1X,ON")){
+        update_software_state(DEPLOYED);
+        cmd_echo = "SP1XON";
+        SetEndTransmission();
+      }
+    #else
+      if (workingString.startsWith("SP2X,ON")){
+        update_software_state(DEPLOYED);
+        cmd_echo = "SP2XON";
+        SetEndTransmission();
+      }
+    #endif
+      else if (workingString.startsWith("ST")) {
+      String STpayloadCopy = "CMD," + String(TEAM_ID) + "," + workingString + "\n";
+        
+        workingString.remove(3);
+        cmd_echo = "ST" + workingString;  // Out of place command echo to save on formatting
+
+        int sec = atoi(workingString.substring(6, 7).c_str());
+        int min = atoi(workingString.substring(3, 4).c_str());
+        int hr = atoi(workingString.substring(0, 1).c_str());
+
+        setTime(hr, min, sec, 1, 1, 2021);
+      }
+    } 
   }
 }
 
@@ -204,6 +247,7 @@ void setup() {
   end_transmission.seconds  = EEPROM.read(end_transmission_ss);
   end_transmission.minutes  = EEPROM.read(end_transmission_mm);
   end_transmission.hours    = EEPROM.read(end_transmission_hh);
+
 
   software_state        = EEPROM.read(ADDR_software_state);
 
@@ -255,10 +299,10 @@ void loop() {
   // Check for new packets received by the XBee, handle them as needed
   XBee_receive();
 
-  if (software_state != NOT_DEPLOYED) {
-      #if SERIAL_DEBUG
-        Serial.println("DROP INTO TIME CHECK");
-      #endif
+  if (software_state == DEPLOYED || software_state == LANDED) {
+//      #if SERIAL_DEBUG
+//        Serial.println("DROP INTO TIME CHECK");
+//      #endif
     
     // Update time
     mission_time = get_time();
@@ -271,51 +315,85 @@ void loop() {
       EEPROM.update(ADDR_time_mm, mission_time.minutes);
       EEPROM.update(ADDR_time_ss, mission_time.seconds);
 
-        #if SERIAL_DEBUG
-          Serial.println("DROP TIME UPDATE");
-        #endif
+//        #if SERIAL_DEBUG
+//          Serial.println("DROP TIME UPDATE");
+//        #endif
     } else {
-        #if SERIAL_DEBUG
-          Serial.println("DROP TIME NO UPDATE");
-        #endif
+//        #if SERIAL_DEBUG
+//          Serial.println("DROP TIME NO UPDATE");
+//        #endif
       return;
     }
   }
 
 
 #if SERIAL_DEBUG
-  Serial.println("STEP 1");
+  Serial.println("void loop()::switch");
 #endif
 
 
 
 switch (software_state){
   case NOT_DEPLOYED:
-  {#if SERIAL_DEBUG
+  {
+#if SERIAL_DEBUG
         Serial.println("DEBUG: NOT_DEPLOYED");
         delay(100);
 #endif
 
-        // Do nothing, wait for XBee command 'CXON'
-        return;
-
-
-
-    break;
+    // Do nothing, wait for XBee command 'CXON'
+    return;
   }
 
   case DEPLOYED:
   {
-  EEPROM.write(
-    // TODO IF JUST TRANSITIONTED, STORE END TRANSMISSION (CONSIDER ADDING IS END TRANSMISSION SET)
-    // ELSE JUST SEND THE PACKET
+#if SERIAL_DEBUG
+        Serial.println("DEBUG: DEPLOYED");
+        delay(100);
+#endif
+
+    // Check if landed
+    float new_altitude = get_altitude();
+    if (new_altitude < altitude + 3 && new_altitude > altitude - 3) {
+      transition_tracker += 1;
+
+      if (transition_tracker == 3) {
+        update_software_state(LANDED);
+      }
+    } else {
+      transition_tracker = 0;
+    }
+
+    altitude = new_altitude;
+
+    
+    
+    send_packet();
+    break;
+  }
+
+  case LANDED:
+  {
+    // Check for end transmission
+    if (end_transmission.seconds == mission_time.seconds){
+      if (end_transmission.minutes == mission_time.minutes){
+        if(end_transmission.hours == mission_time.hours){
+          update_software_state(END_TRANSMISSION);
+        }
+      }
+    }
+  
+
+    altitude = get_altitude();
+    send_packet();
+
 
     break;
   }
 
   case END_TRANSMISSION:
   {
-
+    delay(10000);
 
     break;
   }

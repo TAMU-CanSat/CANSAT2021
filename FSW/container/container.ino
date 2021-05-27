@@ -133,6 +133,8 @@ float get_voltage() {
 }
 
 
+// TODO ADD SENDING A SET TIME PACKET BEFORE SP12XON, THEN DELAY TO PROCESS
+// TODO Alternatively just subs
 void send_packet_payload(byte payloadNum) {
   // Form payload
   String payload = "CMD," + String(TEAM_ID) + ",SP";
@@ -390,6 +392,8 @@ void XBee_receive() {
         cmd_echo = "CXOFF";
       
       } else if (workingString.startsWith("ST")){
+        String STpayloadCopy = "CMD," + String(TEAM_ID) + "," + workingString + "\n";
+        
         workingString.remove(3);
         cmd_echo = "ST" + workingString;  // Out of place command echo to save on formatting
         
@@ -401,6 +405,9 @@ void XBee_receive() {
 //        stime.second = toInt(workingString.substring(6, 7));
 
         rtc.adjust(stime);
+
+        // Pass ST to payload
+        XBEE_PAYLOAD_SERIAL.write(STpayloadCopy.c_str());
 
       } else if (workingString.startsWith("SIM")){
         // Check for enable / active
@@ -588,16 +595,11 @@ void loop() {
   // Check for new packets received by the XBee, handle them as needed
   XBee_receive();
 
-  #if SERIAL_DEBUG
-    Serial.println("XBEE RECEIVE");
-  #endif
-
-
   // Mission time is set before launch, so we only worry about it past LAUNCH_WAIT
   if (software_state != LAUNCH_WAIT) {
-      #if SERIAL_DEBUG
-        Serial.println("DROP INTO TIME CHECK");
-      #endif
+//      #if SERIAL_DEBUG
+//        Serial.println("DROP INTO TIME CHECK");
+//      #endif
     
     // Update time from RTC
     mission_time = get_rtc_time();
@@ -610,19 +612,19 @@ void loop() {
       EEPROM.update(ADDR_time_mm, mission_time.minutes);
       EEPROM.update(ADDR_time_ss, mission_time.seconds);
 
-        #if SERIAL_DEBUG
-          Serial.println("DROP TIME UPDATE");
-        #endif
+//        #if SERIAL_DEBUG
+//          Serial.println("DROP TIME UPDATE");
+//        #endif
     } else {
-        #if SERIAL_DEBUG
-          Serial.println("DROP TIME NO UPDATE");
-        #endif
+//        #if SERIAL_DEBUG
+//          Serial.println("DROP TIME NO UPDATE");
+//        #endif
       return;
     }
   }
 
 #if SERIAL_DEBUG
-  Serial.println("STEP 1");
+  Serial.println("void loop()::switch");
 #endif
 
 
@@ -668,7 +670,7 @@ void loop() {
 
           
           // State 0, check for rapidly increasing altitude over time
-          short new_altitude = get_altitude();
+          float new_altitude = get_altitude();
           if (new_altitude > altitude + 5) {
             state_transition_tracker += 1;
 
@@ -720,10 +722,12 @@ void loop() {
         altitude = get_altitude();
         if (altitude <= 500) {
           state_transition_tracker += 1;
-          if (state_transition_tracker == 3){
+          if (state_transition_tracker == 2){
             state_transition_tracker = 0;
             update_software_state(SP1_RELEASE);
           }
+        } else {
+          state_transition_tracker = 0;
         }
 
         send_packet_gcs();
@@ -745,10 +749,12 @@ void loop() {
         altitude = get_altitude();
         if (altitude <= 400) {
           state_transition_tracker += 1;
-          if (state_transition_tracker == 3){
+          if (state_transition_tracker == 2){
             state_transition_tracker = 0;
             update_software_state(SP2_RELEASE);
           }
+        } else {
+          state_transition_tracker = 0;
         }
 
 
@@ -768,7 +774,7 @@ void loop() {
         }
 
         // Track altitude, watch for landing with assumed pressure flucutations of +- 3m
-        short new_altitude = get_altitude();
+        float new_altitude = get_altitude();
         if (new_altitude < altitude + 3 && new_altitude > altitude - 3) {
           state_transition_tracker += 1;
 
@@ -776,6 +782,8 @@ void loop() {
           if (state_transition_tracker == 3) {
             update_software_state(LANDED);
           }
+        } else {
+          state_transition_tracker = 0;
         }
 
         altitude = new_altitude;  // Update altitude
@@ -788,6 +796,8 @@ void loop() {
       }
     case LANDED:
       {
+        // TODO Activate the buzzer
+        
         if (state_transition_tracker_state == 0) {
 
 
