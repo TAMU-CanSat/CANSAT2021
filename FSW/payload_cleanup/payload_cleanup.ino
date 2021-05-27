@@ -1,11 +1,19 @@
 #include <EEPROM.h>
+#include "memorymap.h"
+
 
 void setup() {
-  // TODO Overwrite EEPROM addresses
-
+  // Default EEPROM state
+  EEPROM.update(ADDR_software_state, NOT_DEPLOYED);
+  EEPROM.update(ADDR_packet_count, 0);
+  EEPROM.update(ADDR_sim_enabled, 0);
 }
 
+int ledPin = 13;
 void loop() {
-  // put your main code here, to run repeatedly:
-  delay(100000);
+  // Blink to show completion
+  digitalWrite(ledPin, HIGH);
+  delay(1000);
+  digitalWrite(ledPin, LOW);
+  delay(1000);
 }

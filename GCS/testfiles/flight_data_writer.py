@@ -7,7 +7,7 @@ import time
 TEAM_ID = 2743
 
 # The datafiles directory should be under this directory
-ROOT_DIRECTORY = "../"
+ROOT_DIRECTORY = ""
 
 
 def write_data(teamid, quick, delay):

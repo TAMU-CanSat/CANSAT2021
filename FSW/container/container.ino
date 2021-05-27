@@ -8,13 +8,13 @@
 
 // Hardware libraries
 #include <RTClib.h>
-#include <Adafruit_BMP280.h>
+#include <Adafruit_BMP3XX.h>
 #include <Adafruit_GPS.h>
 //#include <XBee.h>
 
 // Sensors/Hardware declarations
 RTC_PCF8523 rtc;
-Adafruit_BMP280 bmp;
+Adafruit_BMP3XX bmp;
 Adafruit_GPS gps(&Serial3);
 Servo servo;
 //XBee xbee_gcs;
@@ -181,6 +181,10 @@ void update_software_state(const byte newState) {
 
 // Polls sensors and global variables before constructing and sending a new packet to GCS
 void send_packet_gcs() {
+//  #if SERIAL_DEBUG
+//    Serial.println("SEND PACKET GCS - TOP");
+//  #endif
+//  
   String payload = String(TEAM_ID) + ",";
 
   // Mission time
@@ -235,6 +239,10 @@ void send_packet_gcs() {
   float voltage = get_voltage();
   payload += String(voltage) + ",";
 
+//  #if SERIAL_DEBUG
+//    Serial.println("PAST VOLTAGE");
+//  #endif
+
   // GPS - Time
   GPS_struct GPS = get_gps();
   if (GPS.time.hours < 10) {
@@ -255,6 +263,10 @@ void send_packet_gcs() {
   // GPS - Location
   payload += String(GPS.latitude) + "," + String(GPS.longitude) + "," + String(GPS.altitude) + ",";
   payload += String(GPS.sats) + ",";
+
+//  #if SERIAL_DEBUG
+//    Serial.println("PAST GPS");
+//  #endif
 
   // Software state
   switch (software_state) {
@@ -283,11 +295,28 @@ void send_packet_gcs() {
   // Payload packet counts
   payload += String(sp1_packet_count) + "," + String(sp2_packet_count) + ",";
 
+//  #if SERIAL_DEBUG
+//    Serial.println("PACKET COUNTS");
+//  #endif
+
   // cmd echo
   payload += cmd_echo + "\n";
 
+//  #if SERIAL_DEBUG
+//    Serial.println("PAST CMD ECHO, SENDING PACKET");
+//  #endif
+
+  #if SERIAL_DEBUG
+    Serial.print("PACKET: ");
+    Serial.println(payload);
+  #endif
+
   // Send the packet
   XBEE_GCS_SERIAL.write(payload.c_str());
+//
+//  #if SERIAL_DEBUG
+//    Serial.println("PACKET SENT");
+//  #endif
 
   // TODO Write to SD card
 }
@@ -351,7 +380,7 @@ void XBee_receive() {
       // Remove 'CMD,2743,' (9 chars) to determine cmd type
       workingString.remove(9);
 
-      if (workingString.startsWith("CXON")){
+      if (workingString.startsWith("CX,ON")){
         // Update state, update CMD ECHO
         update_software_state(ASCENT_LAUNCHPAD);
         cmd_echo = "CXON";
@@ -443,7 +472,6 @@ void setup() {
   while (!Serial);
 #endif
 
-// REMOVE ME
   Wire.begin();
   Serial.println("WIRE BEGIN SUCCESS");
 
@@ -463,18 +491,17 @@ void setup() {
       Serial.println("XBEE INIT COMPLETE");
 #endif
 
-  // TODO REMOVE ME
-  delay(3000);
+//  delay(3000);
 
 //  // RTC init
-//  if (!rtc.begin()) {
-//#if SERIAL_DEBUG
-//    Serial.println("INIT FAILED: RTC.BEGIN() RETURNED FALSE");
-//    Serial.flush();
-////      XBEE_GCS_SERIAL.write('1');
-//#endif
-//    abort();
-//  }
+  if (!rtc.begin()) {
+#if SERIAL_DEBUG
+    Serial.println("INIT FAILED: RTC.BEGIN() RETURNED FALSE");
+    Serial.flush();
+//      XBEE_GCS_SERIAL.write('1');
+#endif
+    abort();
+  }
 
 #if SERIAL_DEBUG
       Serial.println("RTC INIT COMPLETE");
@@ -529,15 +556,12 @@ void setup() {
     gps.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);  // Set update interval
   }
 
-#if SERIAL_DEBUG
-      Serial.println("BMP INIT COMPLETE SUCCESSFULLY");
-      Serial.println("SETUP COMPLETE SUCCESSFULLY");
-#endif
+
 
   // Init sensors if we're waiting for launch or landed
   if (software_state != LANDED ) {//&& software_state != LAUNCH_WAIT) {
     // BMP
-    if (!bmp.begin()) {
+    if (!bmp.begin_I2C()) {
 #if SERIAL_DEBUG
       Serial.println("INIT FAILED: BMP.BEGIN() RETURNED FALSE");
       Serial.flush();
@@ -564,8 +588,17 @@ void loop() {
   // Check for new packets received by the XBee, handle them as needed
   XBee_receive();
 
+  #if SERIAL_DEBUG
+    Serial.println("XBEE RECEIVE");
+  #endif
+
+
   // Mission time is set before launch, so we only worry about it past LAUNCH_WAIT
   if (software_state != LAUNCH_WAIT) {
+      #if SERIAL_DEBUG
+        Serial.println("DROP INTO TIME CHECK");
+      #endif
+    
     // Update time from RTC
     mission_time = get_rtc_time();
 
@@ -576,10 +609,21 @@ void loop() {
       EEPROM.update(ADDR_time_hh, mission_time.hours);
       EEPROM.update(ADDR_time_mm, mission_time.minutes);
       EEPROM.update(ADDR_time_ss, mission_time.seconds);
+
+        #if SERIAL_DEBUG
+          Serial.println("DROP TIME UPDATE");
+        #endif
     } else {
+        #if SERIAL_DEBUG
+          Serial.println("DROP TIME NO UPDATE");
+        #endif
       return;
     }
   }
+
+#if SERIAL_DEBUG
+  Serial.println("STEP 1");
+#endif
 
 
   switch (software_state) {
@@ -587,7 +631,7 @@ void loop() {
       {
 #if SERIAL_DEBUG
         Serial.println("DEBUG: LAUNCH_WAIT");
-//          XBEE_GCS_SERIAL.write('7');
+        delay(100);
 #endif
 
         // Do nothing, wait for XBee command 'CXON'
@@ -597,14 +641,32 @@ void loop() {
       }
     case ASCENT_LAUNCHPAD:
       {
+        #if SERIAL_DEBUG
+          Serial.println("ASCENT_LAUNCHPAD");
+        #endif
+
+        
         // Check the transition tracker, update accordingly
         if (state_transition_tracker_state == -1) {
+  #if SERIAL_DEBUG
+    Serial.println("DROP IN");
+  #endif
+          
           // Just initialized, update to 0, set current altitude
           state_transition_tracker_state = 0;
           altitude = get_altitude();
           state_transition_tracker = altitude;
 
+  #if SERIAL_DEBUG
+    Serial.println("PAST ALT");
+  #endif
+
         } else if (state_transition_tracker_state == 0) {
+  #if SERIAL_DEBUG
+    Serial.println("DROP 2");
+  #endif
+
+          
           // State 0, check for rapidly increasing altitude over time
           short new_altitude = get_altitude();
           if (new_altitude > altitude + 5) {
@@ -620,6 +682,10 @@ void loop() {
           altitude = new_altitude;  // Update altitude
 
         } else if (state_transition_tracker_state == 1) {
+  #if SERIAL_DEBUG
+    Serial.println("DROP 3");
+  #endif
+          
           // State 1, check for decreasing altitude over time
           short new_altitude = get_altitude();
           if (new_altitude < altitude - 1) {
@@ -638,9 +704,13 @@ void loop() {
           altitude = new_altitude;  // Update altitude
         }
 
-
+  #if SERIAL_DEBUG
+    Serial.println("SENDING PACKET");
+  #endif
         send_packet_gcs();
-
+  #if SERIAL_DEBUG
+    Serial.println("END SENDING PACKET");
+  #endif
         break;
       }
     case DESCENT:

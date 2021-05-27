@@ -26,7 +26,7 @@ SIMP_FILE = "datafiles/simp_example.csv"
 SAFETY_BUTTONS = True
 
 # Disable before real or test flights to open serial ports
-TEST_MODE = True
+TEST_MODE = False
 
 # Serial port configuration
 PORT = "COM3"  # ex. COM5, COM6
@@ -302,6 +302,8 @@ label_timeSinceLastPacket.place(x=20, y=760)
 # Variables
 lastCommandSent = "DEFAULT"  # Populated with the last command sent to write_serial
 lastCommandReceived = "DEFAULT"  # Populated with the last command echo
+
+# TODO Update this value correctly
 time_lastReceived = -1  # Stored in seconds since epoch
 
 # Attempt to open the serial port
@@ -345,7 +347,7 @@ def write_serial(command):
         global CANSAT, lastCommandSent
         lastCommandSent = command
         CANSAT.write(command)
-        print("SENT COMMAND: " + command)
+        print("SENT COMMAND: {}".format(command));
         sleep(0.25)
     else:
         print("TEST_MODE: Command written: {}".format(command))

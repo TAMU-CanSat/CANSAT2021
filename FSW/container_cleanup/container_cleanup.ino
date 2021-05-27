@@ -1,16 +1,18 @@
 #include <EEPROM.h>
-
-// COPY FROM MEMORYMAP.h IN CONTAINER
-const short EEPROM_OFFSET = 0;  
-
-// Container memory map, each value is an eeprom addr
-const short ADDR_software_state =     0  + EEPROM_OFFSET;
-// END COPIED REGION
+#include "memorymap.h"
 
 
 void setup() {
   // Default EEPROM state
-  EEPROM.update(ADDR_software_state, 1);
+  EEPROM.update(ADDR_software_state, LAUNCH_WAIT);
+  EEPROM.update(ADDR_packet_count, 0);
+  EEPROM.update(ADDR_mode, 0);
+  EEPROM.update(ADDR_sim_enabled, 0);
+  EEPROM.update(ADDR_sp1_released, 0);
+  EEPROM.update(ADDR_sp2_released, 0);
+  EEPROM.update(ADDR_sp1_packet_count, 0);
+  EEPROM.update(ADDR_sp2_packet_count, 0);
+  
 }
 
 int ledPin = 13;
