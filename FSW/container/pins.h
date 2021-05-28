@@ -18,4 +18,4 @@ const byte I2C_SCL = 			19;
 // TODO WAITING TO HEAR THE EXACT PIN FROM EE
 const byte VOLTAGE_PIN = 		23;
 
-const byte AUDIO_BEACON =       40;
+const byte AUDIO_BEACON =       4;

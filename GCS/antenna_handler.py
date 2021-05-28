@@ -335,12 +335,21 @@ def secondsSinceEpoch():
 def read_serial():
     if not TEST_MODE:
         global CANSAT
+        found_start = False
+        incoming_packet = b""
 
-        incoming_packet = CANSAT.read_until(expected='\n')
-        if incoming_packet == b'':
-            return None
+        sleep(.20)
+        if CANSAT.in_waiting:
+            sleep(.2)
+            incoming_packet += CANSAT.read_all()
         else:
-            return incoming_packet.decode("utf-8")
+            return None
+
+        if incoming_packet.startswith(b"2743,"):
+            return incoming_packet.replace(b'\n', b'').decode()
+        elif b"2743," in incoming_packet:
+            return incoming_packet.split(b'2743,')[1] + b'2743,'
+
 
 
 def write_serial(command):
@@ -348,7 +357,7 @@ def write_serial(command):
         global CANSAT, lastCommandSent
         lastCommandSent = command
         CANSAT.write(command)
-        print("SENT COMMAND: {}".format(command));
+        print("SENT COMMAND: {}".format(command))
         sleep(0.25)
     else:
         print("TEST_MODE: Command written: {}".format(command))
@@ -362,40 +371,41 @@ def process_packet(packet):
     split = packet.split(',')
     print("SPLIT PACKET: {}".format(split))
 
-    # Determine packet type and write to file
-    type = None
+    # Determine packet packetType and write to file
+    packetType = None
 
     if len(split) < 4:
-        print("WARNING: PACKET SPLIT LENGTH < 4, COULD NOT PROCESS")
+        print("WARNING: PACKET SPLIT LENGTH < 4, COULD NOT PROCESS\n")
+        return
     else:
         if split[3] == "C":
             print("PACKET TYPE: CONTAINER, WRITING TO FILE")
-            type = 'C'
+            packetType = 'C'
             telemetry_cansat = open("datafiles/Flight_" + str(TEAM_ID) + "_C.csv", 'a')
-            telemetry_cansat.write(packet)
+            telemetry_cansat.write(packet + "\n")
             telemetry_cansat.close()
         elif split[3] == "S1":
-            type = 'S1'
+            packetType = 'S1'
             print("PACKET TYPE: PAYLOAD S1, WRITING TO FILE")
             telemetry_sp1 = open("datafiles/Flight_" + str(TEAM_ID) + "_SP1.csv", 'a')
-            telemetry_sp1.write(packet)
+            telemetry_sp1.write(packet + "\n")
             telemetry_sp1.close()
         elif split[3] == "S2":
-            type = 'S2'
+            packetType = 'S2'
             print("PACKET TYPE: PAYLOAD S2, WRITING TO FILE")
             telemetry_sp2 = open("datafiles/Flight_" + str(TEAM_ID) + "_SP2.csv", 'a')
-            telemetry_sp2.write(packet)
+            telemetry_sp2.write(packet + "\n")
             telemetry_sp2.close()
         else:
-            print("WARNING: INVALID PACKET TYPE {}".format(split[3]))
+            print("WARNING: INVALID PACKET TYPE {}\n".format(split[3]))
 
     # Find the command echo and store it
-    if type == "C" and len(split) >= 19:
+    if packetType == "C" and len(split) >= 19:
         lastCommandReceived = split[18]
-    elif (type == "S1" or type == "S2") and len(split) >= 9:
+    elif (packetType == "S1" or packetType == "S2") and len(split) >= 9:
         lastCommandReceived = split[8]
 
-    # TODO IF PAYLOAD PACKET, REMOVE VOLTAGE, COMMAND ECHO
+        print("TEST PAYLOAD SPLIT: {}".format(packet.rsplit(b',', 2)[0]))
 
     # Upload to MQTT
     MQTT.MQTT_publish(packet)

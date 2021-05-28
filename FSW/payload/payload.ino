@@ -45,7 +45,7 @@ short transition_tracker = 0;
 #include "memorymap.h"  // Includes addresses for EEPROM and Serial aliases
 #include "pins.h"
 const short TEAM_ID = 2743;
-const float SEALEVEL_HPA = 1014.2235055;  // !NOTE: Set to sealevel pressure in hPa!
+const float SEALEVEL_HPA = 1013.0F;  // !NOTE: Set to sealevel pressure in hPa!
 
 
 // Functions
@@ -190,7 +190,7 @@ void XBee_receive() {
     // Validate a cmd string
     if (workingString.startsWith("CMD")){
       // Remove 'CMD,2743,' (9 chars) to determine cmd type
-      workingString.remove(9);
+      workingString.remove(0,9);
 
     #if SP1
       if (workingString.startsWith("SP1X,ON")){
@@ -208,12 +208,12 @@ void XBee_receive() {
       else if (workingString.startsWith("ST")) {
       String STpayloadCopy = "CMD," + String(TEAM_ID) + "," + workingString + "\n";
         
-        workingString.remove(3);
+        workingString.remove(0,3);
         cmd_echo = "ST" + workingString;  // Out of place command echo to save on formatting
 
-        int sec = atoi(workingString.substring(6, 7).c_str());
-        int min = atoi(workingString.substring(3, 4).c_str());
-        int hr = atoi(workingString.substring(0, 1).c_str());
+        int sec = atoi(workingString.substring(6, 8).c_str());
+        int min = atoi(workingString.substring(3, 5).c_str());
+        int hr = atoi(workingString.substring(0, 2).c_str());
 
         setTime(hr, min, sec, 1, 1, 2021);
       }

@@ -1,5 +1,6 @@
 // Compiler flags
-#define SERIAL_DEBUG true
+#define SERIAL_DEBUG false
+#define DEBUG_1 true
 
 // Libraries
 #include <EEPROM.h>
@@ -19,9 +20,6 @@ Adafruit_GPS gps(&Serial3);
 Servo servo;
 //XBee xbee_gcs;
 //XBee xbee_payload;
-
-// FLAGS
-//bool EOL = false;  // Controls end of line terminators
 
 
 // Structs
@@ -44,7 +42,7 @@ struct GPS_struct {  // Used to encapsulate GPS information
 #include "memorymap.h"  // Includes addresses for EEPROM & software_state alises
 #include "pins.h"
 const short TEAM_ID = 2743;
-const float SEALEVEL_HPA = 1014.2235055;  // !NOTE: Set to sealevel pressure in hPa!
+const float SEALEVEL_HPA = 1013.0F;  // !NOTE: Set to sealevel pressure in hPa!
 
 // Variable declarations
 Time          rtc_time_old;  // Tracks rtc time before last shutdown
@@ -59,14 +57,14 @@ bool          sp2_released = false;
 
 unsigned int  sim_pressure = 0;
 unsigned int  packet_count;
-unsigned int  sp1_packet_count;
-unsigned int  sp2_packet_count;
+unsigned int  sp1_packet_count = 0;
+unsigned int  sp2_packet_count = 0;
 
 float altitude;
 
 String cmd_echo = "";
 
-// Other variables
+// Other variable
 short state_transition_tracker        = 0;  // Used to track cycles for transition points between states
 short state_transition_tracker_state  = -1;
 
@@ -91,8 +89,14 @@ float get_temperature() {
 float get_altitude() {
   // If sim_active (mode), return simulated data
   if (mode) {
-    // Modified code from Adafruit_BMP388.cpp/readAltitude()
+    // Modified code from Adafruit_BMP3XX.cpp/readAltitude()
     float pressure = sim_pressure;
+
+#if SERIAL_DEBUG
+Serial.print("SIM PRESSURE : ");
+Serial.println(pressure);
+#endif
+    
     float atmospheric = pressure / 100.0F;
     return 44330.0 * (1.0 - pow(atmospheric / SEALEVEL_HPA, 0.1903));
 
@@ -133,8 +137,6 @@ float get_voltage() {
 }
 
 
-// TODO ADD SENDING A SET TIME PACKET BEFORE SP12XON, THEN DELAY TO PROCESS
-// TODO Alternatively just subs
 void send_packet_payload(byte payloadNum) {
   // Form payload
   String payload = "CMD," + String(TEAM_ID) + ",SP";
@@ -174,6 +176,7 @@ void release_sp2(bool confirm) {
     send_packet_payload(2);
   }
 }
+
 
 void update_software_state(const byte newState) {
   software_state = newState;
@@ -241,10 +244,6 @@ void send_packet_gcs() {
   float voltage = get_voltage();
   payload += String(voltage) + ",";
 
-//  #if SERIAL_DEBUG
-//    Serial.println("PAST VOLTAGE");
-//  #endif
-
   // GPS - Time
   GPS_struct GPS = get_gps();
   if (GPS.time.hours < 10) {
@@ -297,16 +296,8 @@ void send_packet_gcs() {
   // Payload packet counts
   payload += String(sp1_packet_count) + "," + String(sp2_packet_count) + ",";
 
-//  #if SERIAL_DEBUG
-//    Serial.println("PACKET COUNTS");
-//  #endif
-
   // cmd echo
   payload += cmd_echo + "\n";
-
-//  #if SERIAL_DEBUG
-//    Serial.println("PAST CMD ECHO, SENDING PACKET");
-//  #endif
 
   #if SERIAL_DEBUG
     Serial.print("PACKET: ");
@@ -316,9 +307,9 @@ void send_packet_gcs() {
   // Send the packet
   XBEE_GCS_SERIAL.write(payload.c_str());
 //
-//  #if SERIAL_DEBUG
-//    Serial.println("PACKET SENT");
-//  #endif
+  #if SERIAL_DEBUG
+    Serial.println("PACKET SENT");
+  #endif
 
   // TODO Write to SD card
 }
@@ -336,10 +327,6 @@ void XBee_receive() {
     char c;
     while (XBEE_PAYLOAD_SERIAL.available()){
       c = XBEE_PAYLOAD_SERIAL.read();
-
-#if SERIAL_DEBUG
-      Serial.println("RECEIVED: " + c);
-#endif
       
       if (c != '\n'){
         workingString += c;
@@ -363,24 +350,51 @@ void XBee_receive() {
     }
   }
 
+
+//#if SERIAL_DEBUG
+//      Serial.println("Reading from GCS");
+//#endif
+
   // Read characters from GCS XBee if available
   workingString = "";
   if (XBEE_GCS_SERIAL.available()) {
     delay(25);
     char c;
+
+    #if SERIAL_DEBUG
+    Serial.print("RECEIVED: ");
+    #endif
+    
     while (XBEE_GCS_SERIAL.available()) {
       c = XBEE_GCS_SERIAL.read();
       if (c != '\n'){
         workingString += c;
+        
+        #if SERIAL_DEBUG
+        Serial.print(c);
+        #endif
+        
       } else {
         break;
       }
     }
 
+//    #if SERIAL_DEBUG
+//    Serial.println();
+//    Serial.print("WORKING STRING: ");
+//    Serial.println(workingString);
+//    #endif
+
     // Validate a cmd string
     if (workingString.startsWith("CMD")){
       // Remove 'CMD,2743,' (9 chars) to determine cmd type
-      workingString.remove(9);
+      workingString.remove(0,9);
+      
+      #if SERIAL_DEBUG
+      Serial.print("WORKING STRING2: ");
+      Serial.println(workingString);
+      Serial.flush();
+      #endif
 
       if (workingString.startsWith("CX,ON")){
         // Update state, update CMD ECHO
@@ -392,26 +406,42 @@ void XBee_receive() {
         cmd_echo = "CXOFF";
       
       } else if (workingString.startsWith("ST")){
+        
+        #if SERIAL_DEBUG
+        Serial.println("IN ST");
+        #endif
+        
         String STpayloadCopy = "CMD," + String(TEAM_ID) + "," + workingString + "\n";
         
-        workingString.remove(3);
+        workingString.remove(0,3);
         cmd_echo = "ST" + workingString;  // Out of place command echo to save on formatting
         
         // Form a new datetime object from the CMD, pass to the rtc
-        DateTime stime = DateTime(2021, 1, 1, atoi(workingString.substring(0, 1).c_str()), atoi(workingString.substring(3, 4).c_str()), atoi(workingString.substring(6, 7).c_str()));
+        DateTime stime = DateTime(2021, 1, 1, atoi(workingString.substring(0, 2).c_str()), atoi(workingString.substring(3, 5).c_str()), atoi(workingString.substring(6, 8).c_str()));
 
+        
+//        int i = 0;
+//        while (i <= 5){
+//          Serial.print(String(i) + ": ");
+//          Serial.println(workingString.substring(i, i+2));
+//          i += 1;
+//        }
 //        stime.hour = toInt(workingString.substring(0, 1));
 //        stime.minute = toInt(workingString.substring(3, 4));
 //        stime.second = toInt(workingString.substring(6, 7));
 
         rtc.adjust(stime);
 
+        #if SERIAL_DEBUG
+        Serial.println("ST SUCCESS");
+        #endif
+
         // Pass ST to payload
         XBEE_PAYLOAD_SERIAL.write(STpayloadCopy.c_str());
 
-      } else if (workingString.startsWith("SIM")){
+      } else if (workingString.startsWith("SIM,")){
         // Check for enable / active
-        workingString.remove(4);
+        workingString.remove(0,4);
         if (workingString.startsWith("ENABLE")){
           sim_enable = true;
           EEPROM.update(ADDR_sim_enabled, sim_enable);
@@ -436,8 +466,18 @@ void XBee_receive() {
             
         }
       } else if (workingString.startsWith("SIMP")) {
+          #if SERIAL_DEBUG
+          Serial.println("IN SIMP1");
+          #endif
+        
           // Remove text, cast to unsigned int, store
-          workingString.remove(5);
+          workingString.remove(0,5);
+
+          #if SERIAL_DEBUG
+          Serial.print("PRESSURE FROM SIMP: ");
+          Serial.print(workingString);
+          #endif
+          
           sim_pressure = atoi(workingString.c_str());
           EEPROM.update(ADDR_sim_pressure, sim_pressure);
 
@@ -588,9 +628,9 @@ void setup() {
 // ---------------------
 
 void loop() {
-#if SERIAL_DEBUG
-      Serial.println("LOOP - TOP");
-#endif
+//#if SERIAL_DEBUG
+//      Serial.println("LOOP - TOP");
+//#endif
   
   // Check for new packets received by the XBee, handle them as needed
   XBee_receive();
@@ -606,11 +646,20 @@ void loop() {
 
     // Check if it's time to send a new packet (second diff)
     // Theoretically we can miss a single cycle after a set time here, but I'm not concerned
+
+//#if SERIAL_DEBUG
+//    Serial.println("rtc_time_old");
+//    Serial.println(String(mission_time.seconds));
+//    Serial.println(String(rtc_time_old.seconds));
+//#endif
+      
     if (rtc_time_old.seconds != mission_time.seconds) {
       // Update last rtc time stored in memory
       EEPROM.update(ADDR_time_hh, mission_time.hours);
       EEPROM.update(ADDR_time_mm, mission_time.minutes);
       EEPROM.update(ADDR_time_ss, mission_time.seconds);
+
+      rtc_time_old = mission_time;
 
 //        #if SERIAL_DEBUG
 //          Serial.println("DROP TIME UPDATE");
@@ -657,39 +706,50 @@ void loop() {
           // Just initialized, update to 0, set current altitude
           state_transition_tracker_state = 0;
           altitude = get_altitude();
-          state_transition_tracker = altitude;
+          state_transition_tracker = 0;
 
   #if SERIAL_DEBUG
     Serial.println("PAST ALT");
   #endif
 
+//        } else if (state_transition_tracker_state == 0) {
+//  #if SERIAL_DEBUG
+//    Serial.println("DROP 2");
+//  #endif
+//          
+//          // State 0, check for rapidly increasing altitude over time
+//          float new_altitude = get_altitude();
+//
+//          
+//          #if DEBUG_1
+//          Serial.println("UP CHECK: new alt: " + String(new_altitude) + "Old alt: " + String(altitude));
+//          #endif
+//
+//          
+//          if (new_altitude > altitude + 5) {
+//            state_transition_tracker += 1;
+//
+//            // If we've seen rapidly increasing altitude for 3 seconds, move on to the next state
+//            if (state_transition_tracker == 3) {
+//              state_transition_tracker_state = 1;
+//              state_transition_tracker = 0;
+//            }
+//          }
+//
+//          altitude = new_altitude;  // Update altitude
+
         } else if (state_transition_tracker_state == 0) {
-  #if SERIAL_DEBUG
-    Serial.println("DROP 2");
-  #endif
-
-          
-          // State 0, check for rapidly increasing altitude over time
-          float new_altitude = get_altitude();
-          if (new_altitude > altitude + 5) {
-            state_transition_tracker += 1;
-
-            // If we've seen rapidly increasing altitude for 3 seconds, move on to the next state
-            if (state_transition_tracker == 3) {
-              state_transition_tracker_state = 1;
-              state_transition_tracker = 0;
-            }
-          }
-
-          altitude = new_altitude;  // Update altitude
-
-        } else if (state_transition_tracker_state == 1) {
   #if SERIAL_DEBUG
     Serial.println("DROP 3");
   #endif
           
           // State 1, check for decreasing altitude over time
           short new_altitude = get_altitude();
+
+          #if DEBUG_1
+          Serial.println("DOWN CHECK: new alt: " + String(new_altitude) + "Old alt: " + String(altitude));
+          #endif
+          
           if (new_altitude < altitude - 1) {
             state_transition_tracker += 1;
 
@@ -701,7 +761,7 @@ void loop() {
               // Update software state
               update_software_state(DESCENT);
             }
-          }
+          } er1 
 
           altitude = new_altitude;  // Update altitude
         }
@@ -796,12 +856,13 @@ void loop() {
       }
     case LANDED:
       {
-        // TODO Activate the buzzer
+        // Loop on the buzzer, do nothing else
         
-        if (state_transition_tracker_state == 0) {
-
-
-          state_transition_tracker_state = 3;
+        while (true) {
+          digitalWrite(AUDIO_BEACON, HIGH);
+          delay(1000);
+          digitalWrite(AUDIO_BEACON, LOW);
+          delay(1000);
         }
 
 #if SERIAL_DEBUG

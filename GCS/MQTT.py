@@ -51,6 +51,7 @@ mqttc.connect("cansat.info",1883)
 def MQTT_publish(packet):
     global mqttc, topic
     mqttc.publish(topic, packet)
+    print("PACKET PUBLISHED")
 
 # dat = dat.split('\n') # split lines
 # while 1:
