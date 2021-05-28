@@ -352,7 +352,6 @@ def read_serial():
         found_start = False
         incoming_packet = b""
 
-        sleep(.20)
         if CANSAT.in_waiting:
             sleep(.2)
             incoming_packet += CANSAT.read_all()
