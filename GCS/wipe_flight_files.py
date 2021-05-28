@@ -10,7 +10,6 @@ def wipe_and_archive():
     filename_sp1 = ROOT_DIRECTORY + "datafiles/Flight_" + str(TEAM_ID) + "_SP1"
     filename_sp2 = ROOT_DIRECTORY + "datafiles/Flight_" + str(TEAM_ID) + "_SP2"
 
-
     # Get the current date and time
     dateTimeString = time.strftime("%Y%m%d-%H-%M-%S") + "--"
 

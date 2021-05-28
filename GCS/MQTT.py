@@ -40,7 +40,7 @@ topic = 'teams/2743' # team number
 # Connect
 USERNAME = "2743"
 PASSWORD = "Waunjyfy576*"
-mqttc.username_pw_set(USERNAME, PASSWORD) # made up username and password for mqtt
+mqttc.username_pw_set(USERNAME, PASSWORD)
 
 
 # mqttc.connect(url.hostname, url.port)
@@ -53,11 +53,3 @@ def MQTT_publish(packet):
     mqttc.publish(topic, packet)
     print("PACKET PUBLISHED")
 
-# dat = dat.split('\n') # split lines
-# while 1:
-#     for i in dat: # go through all the lines in the file
-#         b = i.split(',') # split line to locate element 3
-#         if len(b) > 1:
-#             if b[3] == 'C':  # check if container data
-#                 time.sleep(1)  # insert 1 second interval unless payload data
-#             mqttc.publish(topic, i)  # send the line of data
