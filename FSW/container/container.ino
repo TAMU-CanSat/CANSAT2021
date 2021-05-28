@@ -1,6 +1,6 @@
 // Compiler flags
 #define SERIAL_DEBUG false
-#define DEBUG_1 true
+#define DEBUG_1 true  // SERIAL_DEBUG was too crowded, use DEBUG_1 for new debugs
 
 // Libraries
 #include <EEPROM.h>
@@ -157,7 +157,7 @@ void send_packet_payload(byte payloadNum) {
 
 void release_sp1(bool confirm) {
   if (confirm) {
-    // TODO Double check with mech/test correct order of rotations
+    // TODO This needs to be tested
     // Release payload 1
     servo.write(15);
 
@@ -856,14 +856,10 @@ void loop() {
       }
     case LANDED:
       {
-        // Loop on the buzzer, do nothing else
-        
-        while (true) {
-          digitalWrite(AUDIO_BEACON, HIGH);
-          delay(1000);
-          digitalWrite(AUDIO_BEACON, LOW);
-          delay(1000);
-        }
+        // TODO This needs to be tested
+        // Activate the buzzer and hold forever
+        tone(AUDIO_BEACON, 500);
+        while (true) {}
 
 #if SERIAL_DEBUG
         Serial.println("The eagle has landed");
