@@ -23,9 +23,14 @@ GRAPH_MAX_TICKS_X = 6
 
 # TODO Consider using Google Maps API to dynamically grab map image/create external script for that task
 # GPS graph configuration
-GPS_IMAGE_FILEPATH = "misc/map8.png"
-GPS_BOTTOM_LEFT = [30.610252837146604, -96.355542911837]  # Coordinates of bottom left corner of map image
-GPS_TOP_RIGHT = [30.621074225490286, -96.33900977620632]  # Coordinates of top right corner of map image
+GPS_IMAGE_FILEPATH = "misc/map_environmentalTest.png"
+GPS_BOTTOM_LEFT = [30.62077330953705, -96.35572937558281]  # Coordinates of bottom left corner of map image
+GPS_TOP_RIGHT = [30.63229855649808, -96.32798970215863]  # Coordinates of top right corner of map image
+
+# Known working
+# GPS_IMAGE_FILEPATH = "misc/map8.png"
+# GPS_BOTTOM_LEFT = [30.610252837146604, -96.355542911837]  # Coordinates of bottom left corner of map image
+# GPS_TOP_RIGHT = [30.621074225490286, -96.33900977620632]  # Coordinates of top right corner of map image
 
 # Hex colors for CANSAT, SP1, and SP2 on the GUI
 COLOR_CANSAT = "#03fc39"
