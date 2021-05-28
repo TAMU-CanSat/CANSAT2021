@@ -2,3 +2,4 @@
 GCS/datafiles/Flight_2743_*
 *.xlsx
 *.pyc
+GCS/datafiles/archive/*

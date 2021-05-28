@@ -6,6 +6,7 @@ import tkinter
 import serial
 import threading
 import MQTT
+import wipe_flight_files
 
 # Time handling imports
 from datetime import datetime, timezone
@@ -29,6 +30,9 @@ SAFETY_BUTTONS = True
 # Disable before real or test flights to open serial ports
 TEST_MODE = False
 
+# Allow the wiping and archiving of flight data files on boot
+ALLOW_WIPE = True
+
 # Serial port configuration
 PORT = "COM3"  # ex. COM5, COM6
 BAUD = 9600  # Default 9600
@@ -51,6 +55,16 @@ print("SIMULATION MODE ALLOWED =", SIM_ALLOWED)
 print("SIMP FILE =", SIMP_FILE)
 print("SAFETY BUTTONS ENABLED =", SAFETY_BUTTONS)
 print()
+
+# Before anything else, ask and wipe flight data files
+if ALLOW_WIPE:
+    print("WIPE AND ARCHIVE FLIGHT FILES (Y/N)? ", end="")
+    source = input()
+
+    if source == 'Y':
+        wipe_flight_files.wipe_and_archive()
+    else:
+        print("Flight data files have not been modified\n")
 
 #################################################################
 # Setup the tkinter window
