@@ -257,10 +257,10 @@ while not stop:
     cansat_recent = data_cansat[len(data_cansat) - 1].replace('\n', '').split(',')
 
     # Check the SP1_RELEASE and SP2_RELEASE status columns
-    if "Y" in cansat_recent[5]:
+    if "R" in cansat_recent[5]:
         indicator_sp1.config(bg="green")
 
-    if "Y" in cansat_recent[6]:
+    if "R" in cansat_recent[6]:
         indicator_sp2.config(bg="green")
 
     # Count missing packets
