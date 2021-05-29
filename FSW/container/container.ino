@@ -1,6 +1,7 @@
 // Compiler flags
-#define SERIAL_DEBUG false
+#define SERIAL_DEBUG true
 #define DEBUG_1 true  // SERIAL_DEBUG was too crowded, use DEBUG_1 for new debugs
+#define DEBUG true  // Serial only starts if this is true
 
 // Libraries
 #include <EEPROM.h>
@@ -72,12 +73,12 @@ short state_transition_tracker_state  = -1;
 // FUNCTION DEFINITIONS
 
 Time get_rtc_time() {
-  Time time_info;
-  DateTime now = rtc.now();
-
   time_info.seconds = now.second();
   time_info.minutes = now.minute();
   time_info.hours   = now.hour();
+  Time time_info;
+  DateTime now = rtc.now();
+
 
   return time_info;
 }
@@ -514,7 +515,7 @@ void XBee_receive() {
 
 
 void setup() {
-#if SERIAL_DEBUG
+#if DEBUG
   Serial.begin(9600);
   while (!Serial);
 #endif
@@ -750,7 +751,7 @@ void loop() {
           Serial.println("DOWN CHECK: new alt: " + String(new_altitude) + "Old alt: " + String(altitude));
           #endif
           
-          if (new_altitude < altitude - 1) {
+          if (new_altitude < altitude - 5) {
             state_transition_tracker += 1;
 
             // If we've seen decreasing altitude for 3 seconds, reset trackers and change software state
@@ -761,7 +762,9 @@ void loop() {
               // Update software state
               update_software_state(DESCENT);
             }
-          } er1 
+          } else {
+            state_transition_tracker = 0; 
+          }
 
           altitude = new_altitude;  // Update altitude
         }
@@ -778,11 +781,15 @@ void loop() {
     case DESCENT:
       {
 
+        #if SERIAL_DEBUG
+        Serial.println("DEBUG: DESCENT");
+        #endif
+
         // If past 500m, transition to SP1_RELEASE
         altitude = get_altitude();
         if (altitude <= 500) {
           state_transition_tracker += 1;
-          if (state_transition_tracker == 2){
+          if (state_transition_tracker == 3){
             state_transition_tracker = 0;
             update_software_state(SP1_RELEASE);
           }
@@ -796,6 +803,10 @@ void loop() {
       }
     case SP1_RELEASE:
       {
+        #if SERIAL_DEBUG
+        Serial.println("DEBUG: SP1_RELEASE");
+        #endif
+        
         if (!sp1_released) {
           release_sp1(false);
           sp1_released = true;
@@ -809,7 +820,7 @@ void loop() {
         altitude = get_altitude();
         if (altitude <= 400) {
           state_transition_tracker += 1;
-          if (state_transition_tracker == 2){
+          if (state_transition_tracker == 3){
             state_transition_tracker = 0;
             update_software_state(SP2_RELEASE);
           }
@@ -824,6 +835,10 @@ void loop() {
       }
     case SP2_RELEASE:
       {
+        #if SERIAL_DEBUG
+        Serial.println("DEBUG: SP2_RELEASE");
+        #endif
+        
         if (!sp2_released) {
           release_sp2(false);
           sp2_released = true;
@@ -839,7 +854,7 @@ void loop() {
           state_transition_tracker += 1;
 
           // If we've seen negligible change over 3 seconds, move on to the next state
-          if (state_transition_tracker == 3) {
+          if (state_transition_tracker == 4) {
             update_software_state(LANDED);
           }
         } else {
@@ -856,9 +871,13 @@ void loop() {
       }
     case LANDED:
       {
-        // TODO This needs to be tested
+        #if SERIAL_DEBUG
+        Serial.println("DEBUG: LANDED");
+        #endif
+        
+        // TODO Activate this before demonstrations
         // Activate the buzzer and hold forever
-        tone(AUDIO_BEACON, 500);
+//        tone(AUDIO_BEACON, 500);
         while (true) {}
 
 #if SERIAL_DEBUG
