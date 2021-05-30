@@ -5,6 +5,8 @@
 import tkinter
 import serial
 import threading
+
+# .py file imports
 import MQTT
 import wipe_flight_files
 
@@ -33,12 +35,11 @@ TEST_MODE = False
 # Allow the wiping and archiving of flight data files on boot
 ALLOW_WIPE = True
 
-# The first packet sent from each of the container and payloads usually has bad data and messes up plots, discard it
+# The first packet sent from the container and payloads usually has bad data and messes up plots, discard it
 DISCARD_FIRST_PACKETS = True
 
-
 # Serial port configuration
-PORT = "COM3"  # ex. COM5, COM6
+PORT = "COM3"  # ex. COM3, COM5
 BAUD = 9600  # Default 9600
 PARITY = "N"  # Default N
 STOPBITS = 1  # Default 1
@@ -69,11 +70,10 @@ print("SIMP FILE =", SIMP_FILE)
 print("SAFETY BUTTONS ENABLED =", SAFETY_BUTTONS)
 print()
 
-# Before anything else, ask and wipe flight data files
+# Ask and wipe flight data files
 if ALLOW_WIPE:
-    print("WIPE AND ARCHIVE FLIGHT FILES (Y/N)? ", end="")
-    # source = input()
-    source = 'Y'
+    print("WIPE AND ARCHIVE EXISTING FLIGHT FILES (Y/N)? ", end="")
+    source = input()
 
     if source == 'Y':
         wipe_flight_files.wipe_and_archive()
@@ -84,7 +84,7 @@ if ALLOW_WIPE:
 # Setup the tkinter window
 window = tkinter.Tk()
 window.pack_propagate(0)
-window.wm_title("Command Palette v0.7")
+window.wm_title("Command Palette v1.0")
 window.configure(bg=WINDOW_BACKGROUND_COLOR)
 
 # Set tkinter window icon
@@ -136,7 +136,6 @@ def SIM_ACTIVATE():
     simp_thread.start()
 
 
-
 def SIM_DISABLE():
     command = "CMD," + str(TEAM_ID) + ",SIM,DISABLE"
     enqueue_command(command)
@@ -168,14 +167,11 @@ button_ZERO = tkinter.Button(text="(ZERO) Zero out sensors", fg="black", padx=20
 button_R_SP1 = tkinter.Button(text="(R_SP1) Release SP1", fg="black", padx=20, pady=20, height=1, width=20, command=R_SP1)
 button_R_SP2 = tkinter.Button(text="(R_SP2) Release SP2", fg="black", padx=20, pady=20, height=1, width=20, command=R_SP2)
 
-
-
 # If simulation mode is not allowed, disable sim buttons
 if not SIM_ALLOWED:
     button_SIM_ENABLE.configure(state="disable")
     button_SIM_ACTIVATE.configure(state="disable")
     button_SIM_DISABLE.configure(state="disable")
-
 
 # Place command buttons
 button_CX_ON.place(x=20, y=20)
@@ -313,6 +309,12 @@ if SAFETY_BUTTONS:
     safety_R_SP1()
     safety_R_SP2()
 
+    # If not SIM_ALLOWED disable enable buttons
+    if not SIM_ALLOWED:
+        button_safety_SIM_ENABLE.configure(state="disable")
+        button_safety_SIM_ACTIVATE.configure(state="disable")
+        button_safety_SIM_DISABLE.configure(state="disable")
+
 # Setup labels
 strvar_lastSent = tkinter.StringVar()
 strvar_lastReceived = tkinter.StringVar()
@@ -329,8 +331,8 @@ label_timeSinceLastPacket.place(x=20, y=760)
 ################################################################################
 # Antenna communications
 # Variables
-lastCommandSent = "DEFAULT"  # Populated with the last command sent to write_serial
-lastCommandReceived = "DEFAULT"  # Populated with the last command echo
+lastCommandSent = "None"  # Populated with the last command sent to write_serial
+lastCommandReceived = "None"  # Populated with the last command echo
 
 # TODO Update this value correctly
 time_lastReceived = -1  # Stored in seconds since epoch
@@ -355,11 +357,11 @@ if not connected and not TEST_MODE:
 
 
 # Helper functions
-def secondsSinceEpoch():
-    return timegm(gmtime())
+# def secondsSinceEpoch():
+#     return timegm(gmtime())
 
 
-# Note: each telemetry transmission is concluded by a \n
+# Read from the GCS XBee
 def read_serial():
     returnMe = []
 
@@ -368,7 +370,7 @@ def read_serial():
         incoming_packet = b""
 
         # TODO This delay needs to be tuned (prev 300, arduino 75)
-        sleepTime_ms = 100
+        sleepTime_ms = 75
         if CANSAT.in_waiting:
             sleep(sleepTime_ms)
             while CANSAT.in_waiting:
@@ -381,7 +383,6 @@ def read_serial():
             # print("INCOMING PACKET - LOWER: {}".format(incoming_packet))
             if incoming_packet != b"2743" and incoming_packet != b"":
                 returnMe.append(incoming_packet.decode())
-
 
                 # if incoming_packet.startswith(b"2743,"):
                 #     returnMe.append(incoming_packet.replace(b'\n', b'').decode())
@@ -414,6 +415,7 @@ def read_serial():
     #     elif b"2743," in incoming_packet:
     #         return incoming_packet.split(b'2743,')[1] + b'2743,'
 
+
 def write_serial(command):
     if not TEST_MODE:
         global CANSAT, lastCommandSent
@@ -428,8 +430,11 @@ def write_serial(command):
 def process_packet(packets):
     global lastCommandReceived, DISCARD_CONTAINER, DISCARD_SP1, DISCARD_SP2
     for packet in packets:
+        # Sanity check for empty packets
         if len(packet) == 0:
+            print("WARNING: Empty packet passed to process_packet")
             continue
+
         # print("PROCESSING PACKET: {}".format(packet))
 
         # Split packet
@@ -455,6 +460,7 @@ def process_packet(packets):
                 if not packet.endswith("\n"):
                     telemetry_cansat.write("\n")
                 telemetry_cansat.close()
+
             elif split[3] == "S1":
                 if DISCARD_SP1:
                     DISCARD_SP1 = False
@@ -467,6 +473,7 @@ def process_packet(packets):
                 if not packet.endswith("\n"):
                     telemetry_sp1.write("\n")
                 telemetry_sp1.close()
+
             elif split[3] == "S2":
                 if DISCARD_SP2:
                     DISCARD_SP2 = False
@@ -488,7 +495,7 @@ def process_packet(packets):
 
         # MQTT ERROR CHECK
         # Note: This change is due to an incorrect setup between the manual and the mqtt server
-        # The server expected SP1 and SP2 whereas the manual states packet type is S1 and S2
+        # The server expects SP1 and SP2 whereas the manual states packet type is S1 and S2
         # The server will not work with S1 and S2
         if packetType == 'S1':
             packet = packet.replace("S1", "SP1")
@@ -514,11 +521,13 @@ def simp():
             continue
 
         # This needs to happen async, race conditions be damned, so we can't use enqueue_command
-        # When we're processing 3 packets a second minimum python on lower end laptops can't keep up
-        # due to really inefficient code
+        # This ensures we send one simp command every second
         command = line.replace('$', str(TEAM_ID))
         lastCommandSent = command
-        CANSAT.write(bytes(command, 'utf8'))
+
+        if not TEST_MODE:
+            CANSAT.write(bytes(command, 'utf8'))
+
         print("SENT COMMAND: {}".format(command))
         sleep(1)
 
@@ -531,6 +540,7 @@ simp_thread = threading.Thread(target=simp, args=())
 # strvar_lastSent.set("Last command sent: CMD,2992,CX,ON")
 # strvar_lastReceived.set("Last command echo: CMD,2992,CX,ON")
 # strvar_timeSinceLastPacket.set("Last packet received: 1s ago")
+
 
 # Main function, runs a loop for receiving packets and sending commands
 def main():
@@ -548,7 +558,7 @@ def main():
         # Update labels
         strvar_lastSent.set("Last command sent: {}".format(lastCommandSent))
         strvar_lastReceived.set("Last command echo: {}".format(lastCommandReceived))
-        strvar_timeSinceLastPacket.set("Last packet received: {}s ago".format(time_lastReceived))
+        # strvar_timeSinceLastPacket.set("Last packet received: {}s ago".format(time_lastReceived))
 
         # Update the window
         window.update()

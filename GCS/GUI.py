@@ -83,7 +83,7 @@ graphs_titles = ["Altitude", "Rotation", "GPS Location", "Temperature", "Battery
 # Setup the tkinter window
 window = tkinter.Tk()
 window.pack_propagate(0)
-window.wm_title("Falling With Style GUI v0.1")
+window.wm_title("Falling With Style GUI v1.0")
 window.configure(bg=WINDOW_BACKGROUND_COLOR)
 
 # Open the window in the center of the screen
@@ -177,7 +177,6 @@ while not stop:
         window.update()
         continue
 
-    # TODO Create files in initialization code above
     # Open datafiles, assume all files exist even if empty
     file_cansat = open(filename_cansat, 'r')
     file_sp1 = open(filename_sp1, 'r')
