@@ -1,6 +1,7 @@
-// Compiler flags
-#define SERIAL_DEBUG true
+// Compiler flags, CRITICAL NOTE: SET ALL TO FALSE BEFORE PUSHING FOR FLIGHT OR IT WILL HANG IN SETUP
+#define SERIAL_DEBUG false
 #define DEBUG_1 true  // SERIAL_DEBUG was too crowded, use DEBUG_1 for new debugs
+#define DEBUG_2 true  // Used for payload relay debugging
 #define DEBUG true  // Serial only starts if this is true
 
 // Libraries
@@ -12,16 +13,12 @@
 #include <RTClib.h>
 #include <Adafruit_BMP3XX.h>
 #include <Adafruit_GPS.h>
-//#include <XBee.h>
 
 // Sensors/Hardware declarations
 RTC_PCF8523 rtc;
 Adafruit_BMP3XX bmp;
 Adafruit_GPS gps(&Serial3);
 Servo servo;
-//XBee xbee_gcs;
-//XBee xbee_payload;
-
 
 // Structs
 struct Time {
@@ -43,7 +40,7 @@ struct GPS_struct {  // Used to encapsulate GPS information
 #include "memorymap.h"  // Includes addresses for EEPROM & software_state alises
 #include "pins.h"
 const short TEAM_ID = 2743;
-const float SEALEVEL_HPA = 1013.0F;  // !NOTE: Set to sealevel pressure in hPa!
+const float SEALEVEL_HPA = 1014.6F;  // !NOTE: Set to sealevel pressure in hPa!
 
 // Variable declarations
 Time          rtc_time_old;  // Tracks rtc time before last shutdown
@@ -73,11 +70,12 @@ short state_transition_tracker_state  = -1;
 // FUNCTION DEFINITIONS
 
 Time get_rtc_time() {
+  Time time_info;
+  DateTime now = rtc.now();
+  
   time_info.seconds = now.second();
   time_info.minutes = now.minute();
   time_info.hours   = now.hour();
-  Time time_info;
-  DateTime now = rtc.now();
 
 
   return time_info;
@@ -93,10 +91,10 @@ float get_altitude() {
     // Modified code from Adafruit_BMP3XX.cpp/readAltitude()
     float pressure = sim_pressure;
 
-#if SERIAL_DEBUG
-Serial.print("SIM PRESSURE : ");
-Serial.println(pressure);
-#endif
+    #if SERIAL_DEBUG
+    Serial.print("SIM PRESSURE : ");
+    Serial.println(pressure);
+    #endif
     
     float atmospheric = pressure / 100.0F;
     return 44330.0 * (1.0 - pow(atmospheric / SEALEVEL_HPA, 0.1903));
@@ -130,7 +128,7 @@ GPS_struct get_gps() {
 }
 
 float get_voltage() {
-  // TODO Waiting for EE FOR EXACT PIN, UPDATE IN 'pins.h'
+  // TODO This is untested since we've been unable to test the system with a battery in
   float voltage = analogRead(VOLTAGE_PIN);
 
   // Map to range, 1023 = 7.2v
@@ -300,7 +298,7 @@ void send_packet_gcs() {
   // cmd echo
   payload += cmd_echo + "\n";
 
-  #if SERIAL_DEBUG
+  #if DEBUG_2
     Serial.print("PACKET: ");
     Serial.println(payload);
   #endif
@@ -324,14 +322,22 @@ void XBee_receive() {
   // Read characters from Payload XBee if available
   String workingString = "";
   if (XBEE_PAYLOAD_SERIAL.available()) {
-    delay(25);
+    delay(75);  // Smaller delays result in errors due to the slow processor speed of the 3.2s
     char c;
-    while (XBEE_PAYLOAD_SERIAL.available()){
+
+    #if DEBUG_2
+    Serial.print("RECEIVING (CHARS): ");
+    #endif
+    
+    while (XBEE_PAYLOAD_SERIAL.available()) {
       c = XBEE_PAYLOAD_SERIAL.read();
+      workingString += c;
+
+      #if DEBUG_2
+      Serial.print(c);
+      #endif
       
-      if (c != '\n'){
-        workingString += c;
-      } else {
+      if (c == '\n'){
         // Determine if this was from SP1 or SP2, update as needed
         if (workingString.substring(18,18) == "1"){
           sp1_packet_count += 1;
@@ -341,12 +347,23 @@ void XBee_receive() {
           EEPROM.update(ADDR_sp2_packet_count, sp2_packet_count);
         }
         
-        // Forward on to GCS
-        workingString += c;
+        // Relay and continue if more available
+        #if DEBUG_2
+        Serial.println();
+        Serial.print("Relaying to ground: ");
+        Serial.println(workingString);
+        #endif
+
         XBEE_GCS_SERIAL.write(workingString.c_str());
+
         workingString = "";
-        delay(25);
-        // No break here incase we have two packets stacked up
+
+        if (XBEE_PAYLOAD_SERIAL.available()){
+          delay(50);
+        } else {
+          // This break is important to avoid race conditions
+          break;
+        }
       }
     }
   }
@@ -388,6 +405,11 @@ void XBee_receive() {
 
     // Validate a cmd string
     if (workingString.startsWith("CMD")){
+      // Check string at minimum contains 9 characters
+      if (workingString.length()<= 9) {
+        return;
+      }
+      
       // Remove 'CMD,2743,' (9 chars) to determine cmd type
       workingString.remove(0,9);
       
@@ -411,6 +433,11 @@ void XBee_receive() {
         #if SERIAL_DEBUG
         Serial.println("IN ST");
         #endif
+
+        // Check string is long enough to process as an ST
+        if (workingString.length() < 11) {
+          return;
+        }
         
         String STpayloadCopy = "CMD," + String(TEAM_ID) + "," + workingString + "\n";
         
@@ -441,6 +468,11 @@ void XBee_receive() {
         XBEE_PAYLOAD_SERIAL.write(STpayloadCopy.c_str());
 
       } else if (workingString.startsWith("SIM,")){
+        // Check string is long enough to process as a SIM
+        if (workingString.length() < 4) {
+          return;
+        }
+        
         // Check for enable / active
         workingString.remove(0,4);
         if (workingString.startsWith("ENABLE")){
@@ -467,6 +499,11 @@ void XBee_receive() {
             
         }
       } else if (workingString.startsWith("SIMP")) {
+        // Check string is long enough to process as a SIMP
+        if (workingString.length() < 6) {
+          return;
+        }
+        
           #if SERIAL_DEBUG
           Serial.println("IN SIMP1");
           #endif
@@ -520,8 +557,10 @@ void setup() {
   while (!Serial);
 #endif
 
+#if SERIAL_DEBUG
   Wire.begin();
   Serial.println("WIRE BEGIN SUCCESS");
+#endif
 
   // XBee init
   XBEE_GCS_SERIAL.begin(9600);
@@ -555,6 +594,7 @@ void setup() {
       Serial.println("RTC INIT COMPLETE");
 #endif
 
+  // TODO Set initial value following attach
   // Servo init
   servo.attach(SERVO_PWM);
 
@@ -621,20 +661,25 @@ void setup() {
   }
 #if SERIAL_DEBUG
       Serial.println("BMP INIT COMPLETE SUCCESSFULLY");
+#endif
+#if DEBUG
       Serial.println("SETUP COMPLETE SUCCESSFULLY");
 #endif
 
 }
 
 // ---------------------
-
+  
 void loop() {
 //#if SERIAL_DEBUG
 //      Serial.println("LOOP - TOP");
 //#endif
   
   // Check for new packets received by the XBee, handle them as needed
-  XBee_receive();
+  // Only if we're not landed
+  if (software_state != LANDED){
+    XBee_receive();
+  }
 
   // Mission time is set before launch, so we only worry about it past LAUNCH_WAIT
   if (software_state != LAUNCH_WAIT) {
@@ -808,12 +853,12 @@ void loop() {
         #endif
         
         if (!sp1_released) {
-          release_sp1(false);
+          release_sp1(true);
           sp1_released = true;
           EEPROM.update(ADDR_sp1_released, 1);
         } else {
           // Failsafe in the event of a poorly timed power outage
-          release_sp1(false);
+          release_sp1(true);
         }
 
         // If past 400m, transition to SP1_RELEASE
@@ -840,17 +885,25 @@ void loop() {
         #endif
         
         if (!sp2_released) {
-          release_sp2(false);
+          release_sp2(true);
           sp2_released = true;
           EEPROM.update(ADDR_sp2_released, 1);
         } else {
           // Failsafe in the event of a poorly timed power outage
-          release_sp2(false);
+          release_sp2(true);
         }
 
         // Track altitude, watch for landing with assumed pressure flucutations of +- 3m
         float new_altitude = get_altitude();
-        if (new_altitude < altitude + 3 && new_altitude > altitude - 3) {
+        if (new_altitude < altitude + 2 && new_altitude > altitude - 2) {
+
+          #if DEBUG_3
+          Serial.print("INCREMENTING LANDING COUNTER WITH NEW_ALT | OLD_ALT: ");
+          Serial.print(new_altitude)
+          Serial.print(" | ");
+          Serial.println(altitude);
+          #endif
+          
           state_transition_tracker += 1;
 
           // If we've seen negligible change over 3 seconds, move on to the next state
@@ -878,8 +931,7 @@ void loop() {
         // TODO Activate this before demonstrations
         // Activate the buzzer and hold forever
 //        tone(AUDIO_BEACON, 500);
-        while (true) {}
-
+        while (true) { 
 #if SERIAL_DEBUG
         Serial.println("The eagle has landed");
 #endif
@@ -887,7 +939,8 @@ void loop() {
         // Delay for an extended period of time
         delay(10000);
 
-        break;
+        break;    
+          }
       }
   }
 }

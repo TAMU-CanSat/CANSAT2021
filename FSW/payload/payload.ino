@@ -1,8 +1,10 @@
-// CRITICAL: SP1 COMPILER FLAG NEEDS TO BE TRUE WHEN COMPILING FOR SP1
+// CRITICAL NOTE: SP1 COMPILER FLAG NEEDS TO BE TRUE WHEN COMPILING FOR SP1
 // AND FALSE WHEN COMPILING FOR SP2
 // Compiler flags
 #define SERIAL_DEBUG true
-#define SP1 true
+#define DEBUG_2 true  // Used to debug command receipt for SPXON
+#define DEBUG true
+#define SP1 false
 
 // Libraries
 #include <EEPROM.h>
@@ -32,7 +34,7 @@ Time          end_transmission;
 
 byte          software_state = 0;
 
-unsigned int  packet_count;
+unsigned int  packet_count = 0;
 
 float altitude;
 float rotation_rate;
@@ -45,7 +47,7 @@ short transition_tracker = 0;
 #include "memorymap.h"  // Includes addresses for EEPROM and Serial aliases
 #include "pins.h"
 const short TEAM_ID = 2743;
-const float SEALEVEL_HPA = 1013.0F;  // !NOTE: Set to sealevel pressure in hPa!
+const float SEALEVEL_HPA = 1014.6F;  // CRITICAL NOTE: Set to sealevel pressure in hPa!
 
 
 // Functions
@@ -71,6 +73,12 @@ float get_rotation(){
   
   float radsPS = g.gyro.z;
   int rpm = round(9.549297 * radsPS);
+
+  // We only want to report positive RPMs, direction isn't important
+  if (rpm < 0){
+    rpm = rpm * -1;
+  }
+  
   return rpm;
 }
 
@@ -86,6 +94,12 @@ Time get_time() {
 
 // Polls sensors and global variables before constructing and sending a new packet to GCS
 void send_packet() {
+   #if DEBUG_2
+   Serial.print("SOFTWARE_STATE: ");
+   Serial.println(software_state);
+   #endif
+
+  
   String payload = String(TEAM_ID) + ",";
 
   // Mission time
@@ -110,9 +124,9 @@ void send_packet() {
   EEPROM.put(ADDR_packet_count, packet_count);
 
 #if SP1
-  payload += String(packet_count) + ",SP1,";
+  payload += String(packet_count) + ",S1,";
 #else
-  payload += String(packet_count) + ",SP2,";
+  payload += String(packet_count) + ",S2,";
 #endif
 
   // Altitude
@@ -135,6 +149,15 @@ void send_packet() {
 
   // Send the packet
   XBEE_CONTAINER.write(payload.c_str());
+
+  #if SERIAL_DEBUG
+    Serial.print("PACKET: ");
+    Serial.println(payload);
+  #endif
+
+  #if SERIAL_DEBUG
+    Serial.println("PACKET SENT");
+  #endif
 
 }
 
@@ -171,7 +194,7 @@ void XBee_receive() {
   // Read characters from XBee if available
   String workingString = "";
   if (XBEE_CONTAINER.available()) {
-    delay(25);
+    delay(50);
     char c;
     while (XBEE_CONTAINER.available()) {
       c = XBEE_CONTAINER.read();
@@ -189,11 +212,17 @@ void XBee_receive() {
 
     // Validate a cmd string
     if (workingString.startsWith("CMD")){
+      // Check string at minimum contains 9 characters
+      if (workingString.length()<= 9) {
+        return;
+      }
+      
       // Remove 'CMD,2743,' (9 chars) to determine cmd type
       workingString.remove(0,9);
 
     #if SP1
       if (workingString.startsWith("SP1X,ON")){
+        
         update_software_state(DEPLOYED);
         cmd_echo = "SP1XON";
         SetEndTransmission();
@@ -206,7 +235,12 @@ void XBee_receive() {
       }
     #endif
       else if (workingString.startsWith("ST")) {
-      String STpayloadCopy = "CMD," + String(TEAM_ID) + "," + workingString + "\n";
+        // Check string is long enough to process as an ST
+        if (workingString.length() < 11) {
+          return;
+        }
+        
+        String STpayloadCopy = "CMD," + String(TEAM_ID) + "," + workingString + "\n";
         
         workingString.remove(0,3);
         cmd_echo = "ST" + workingString;  // Out of place command echo to save on formatting
@@ -215,6 +249,7 @@ void XBee_receive() {
         int min = atoi(workingString.substring(3, 5).c_str());
         int hr = atoi(workingString.substring(0, 2).c_str());
 
+        // Set time (we really don't care about the date)
         setTime(hr, min, sec, 1, 1, 2021);
       }
     } 
@@ -224,7 +259,7 @@ void XBee_receive() {
 
 
 void setup() {
-#if SERIAL_DEBUG
+#if DEBUG
   Serial.begin(9600);
   while (!Serial);
 #endif
@@ -252,6 +287,12 @@ void setup() {
   software_state        = EEPROM.read(ADDR_software_state);
 
   EEPROM.get(ADDR_packet_count,     packet_count);
+
+  #if DEBUG_2
+  Serial.print("PACKET COUNT FROM EEPROM: ");
+  Serial.println(packet_count);
+  #endif
+  
   // END READ EEPROM
 
   // Update time
@@ -293,7 +334,7 @@ if (!bmp.begin_I2C()){
 
 void loop() {
 #if SERIAL_DEBUG
-      Serial.println("LOOP - TOP");
+//      Serial.println("LOOP - TOP");
 #endif
 
   // Check for new packets received by the XBee, handle them as needed
@@ -310,6 +351,9 @@ void loop() {
     // Check if it's time to send a new packet (second diff)
     // Theoretically we can miss a single cycle after a set time here, but I'm not concerned
     if (old_time.seconds != mission_time.seconds) {
+      // Update local old_time
+      old_time = mission_time;
+      
       // Update last rtc time stored in memory
       EEPROM.update(ADDR_time_hh, mission_time.hours);
       EEPROM.update(ADDR_time_mm, mission_time.minutes);
@@ -393,8 +437,10 @@ switch (software_state){
 
   case END_TRANSMISSION:
   {
-    delay(10000);
-
+    delay(1000);
+    #if SERIAL_DEBUG
+    Serial.println("END_TRANSMISSION");
+    #endif
     break;
   }
 }

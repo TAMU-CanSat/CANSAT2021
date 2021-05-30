@@ -12,8 +12,8 @@ def on_message(client, obj, msg):
     print(msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
 
 
-def on_publish(client, obj, mid):
-    print("mid: " + str(mid))
+# def on_publish(client, obj, mid):
+#     print("mid: " + str(mid))
 
 
 def on_subscribe(client, obj, mid, granted_qos):
@@ -28,10 +28,10 @@ def on_log(client, obj, level, string):
 mqttc = mqtt.Client()
 
 # Assign event callbacks
-mqttc.on_message = on_message
-mqttc.on_connect = on_connect
-mqttc.on_publish = on_publish
-mqttc.on_subscribe = on_subscribe
+# mqttc.on_message = on_message
+# mqttc.on_connect = on_connect
+# mqttc.on_publish = on_publish
+# mqttc.on_subscribe = on_subscribe
 
 # Uncomment to enable debug messages
 mqttc.on_log = on_log
@@ -51,5 +51,5 @@ mqttc.connect("cansat.info",1883)
 def MQTT_publish(packet):
     global mqttc, topic
     mqttc.publish(topic, packet)
-    print("PACKET PUBLISHED")
+    # print("PACKET PUBLISHED")
 

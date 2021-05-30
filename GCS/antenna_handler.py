@@ -33,6 +33,10 @@ TEST_MODE = False
 # Allow the wiping and archiving of flight data files on boot
 ALLOW_WIPE = True
 
+# The first packet sent from each of the container and payloads usually has bad data and messes up plots, discard it
+DISCARD_FIRST_PACKETS = True
+
+
 # Serial port configuration
 PORT = "COM3"  # ex. COM5, COM6
 BAUD = 9600  # Default 9600
@@ -46,6 +50,15 @@ WINDOW_HEIGHT = 800
 WINDOW_BACKGROUND_COLOR = "#a2a7ab"
 ICON_FILEPATH = "misc/icon.png"
 #################################################################
+# Packet discarding configuration
+DISCARD_CONTAINER = False
+DISCARD_SP1 = False
+DISCARD_SP2 = False
+if DISCARD_FIRST_PACKETS:
+    DISCARD_CONTAINER = True
+    DISCARD_SP1 = True
+    DISCARD_SP2 = True
+
 # Print configuration options for user clarity
 print("Configuration options:")
 print("Team ID = {}".format(TEAM_ID))
@@ -59,7 +72,8 @@ print()
 # Before anything else, ask and wipe flight data files
 if ALLOW_WIPE:
     print("WIPE AND ARCHIVE FLIGHT FILES (Y/N)? ", end="")
-    source = input()
+    # source = input()
+    source = 'Y'
 
     if source == 'Y':
         wipe_flight_files.wipe_and_archive()
@@ -347,94 +361,167 @@ def secondsSinceEpoch():
 
 # Note: each telemetry transmission is concluded by a \n
 def read_serial():
+    returnMe = []
+
     if not TEST_MODE:
         global CANSAT
-        found_start = False
         incoming_packet = b""
 
         if CANSAT.in_waiting:
-            sleep(.2)
-            incoming_packet += CANSAT.read_all()
-        else:
-            return None
+            sleep(.3)
+            while CANSAT.in_waiting:
+                incoming_packet += CANSAT.read()
+                if len(incoming_packet) > 6 and incoming_packet.endswith(b"2743"):
+                    returnMe.append("2743" + incoming_packet.split(b"2743")[1].decode())
+                    incoming_packet = b"2743"
+                    sleep(.3)
 
-        if incoming_packet.startswith(b"2743,"):
-            return incoming_packet.replace(b'\n', b'').decode()
-        elif b"2743," in incoming_packet:
-            return incoming_packet.split(b'2743,')[1] + b'2743,'
+            # print("INCOMING PACKET - LOWER: {}".format(incoming_packet))
+            if incoming_packet != b"2743" and incoming_packet != b"":
+                returnMe.append(incoming_packet.decode())
 
 
+                # if incoming_packet.startswith(b"2743,"):
+                #     returnMe.append(incoming_packet.replace(b'\n', b'').decode())
+                # elif b"2743," in incoming_packet:
+                #     returnMe.append((b'2743,' + incoming_packet.split(b'2743,')[1]).decode())
+                #
+                # # Loop with delay until we have exhausted the serial buffer
+                # if not CANSAT.in_waiting:
+                #     break
+                # else:
+                #     sleep(.2)
+
+            # print("RETURNME: {}".format(returnMe))
+
+    return returnMe
+
+    # if not TEST_MODE:
+    #     global CANSAT
+    #     found_start = False
+    #     incoming_packet = b""
+    #
+    #     if CANSAT.in_waiting:
+    #         sleep(.2)
+    #         incoming_packet += CANSAT.read_all()
+    #     else:
+    #         return None
+    #
+    #     if incoming_packet.startswith(b"2743,"):
+    #         return incoming_packet.replace(b'\n', b'').decode()
+    #     elif b"2743," in incoming_packet:
+    #         return incoming_packet.split(b'2743,')[1] + b'2743,'
 
 def write_serial(command):
     if not TEST_MODE:
         global CANSAT, lastCommandSent
         lastCommandSent = command
         CANSAT.write(command)
-        print("SENT COMMAND: {}".format(command))
+        # print("SENT COMMAND: {}".format(command))
         sleep(0.25)
     else:
         print("TEST_MODE: Command written: {}".format(command))
 
 
-def process_packet(packet):
-    global lastCommandReceived
-    print("PROCESSING PACKET: {}".format(packet))
+def process_packet(packets):
+    global lastCommandReceived, DISCARD_CONTAINER, DISCARD_SP1, DISCARD_SP2
+    for packet in packets:
+        if len(packet) == 0:
+            continue
+        # print("PROCESSING PACKET: {}".format(packet))
 
-    # Split packet
-    split = packet.split(',')
-    print("SPLIT PACKET: {}".format(split))
+        # Split packet
+        split = packet.split(',')
+        # print("SPLIT PACKET: {}".format(split))
 
-    # Determine packet packetType and write to file
-    packetType = None
+        # Determine packet packetType and write to file
+        packetType = None
 
-    if len(split) < 4:
-        print("WARNING: PACKET SPLIT LENGTH < 4, COULD NOT PROCESS\n")
-        return
-    else:
-        if split[3] == "C":
-            print("PACKET TYPE: CONTAINER, WRITING TO FILE")
-            packetType = 'C'
-            telemetry_cansat = open("datafiles/Flight_" + str(TEAM_ID) + "_C.csv", 'a')
-            telemetry_cansat.write(packet + "\n")
-            telemetry_cansat.close()
-        elif split[3] == "S1":
-            packetType = 'S1'
-            print("PACKET TYPE: PAYLOAD S1, WRITING TO FILE")
-            telemetry_sp1 = open("datafiles/Flight_" + str(TEAM_ID) + "_SP1.csv", 'a')
-            telemetry_sp1.write(packet + "\n")
-            telemetry_sp1.close()
-        elif split[3] == "S2":
-            packetType = 'S2'
-            print("PACKET TYPE: PAYLOAD S2, WRITING TO FILE")
-            telemetry_sp2 = open("datafiles/Flight_" + str(TEAM_ID) + "_SP2.csv", 'a')
-            telemetry_sp2.write(packet + "\n")
-            telemetry_sp2.close()
+        if len(split) < 4:
+            print("WARNING: PACKET SPLIT LENGTH < 4, COULD NOT PROCESS\n")
+            return
         else:
-            print("WARNING: INVALID PACKET TYPE {}\n".format(split[3]))
+            if split[3] == "C":
+                # print("PACKET TYPE: CONTAINER, WRITING TO FILE")
+                if DISCARD_CONTAINER:
+                    DISCARD_CONTAINER = False
+                    continue
 
-    # Find the command echo and store it
-    if packetType == "C" and len(split) >= 19:
-        lastCommandReceived = split[18]
-    elif (packetType == "S1" or packetType == "S2") and len(split) >= 9:
-        lastCommandReceived = split[8]
+                packetType = 'C'
+                telemetry_cansat = open("datafiles/Flight_" + str(TEAM_ID) + "_C.csv", 'a')
+                telemetry_cansat.write(packet)
+                if not packet.endswith("\n"):
+                    telemetry_cansat.write("\n")
+                telemetry_cansat.close()
+            elif split[3] == "S1":
+                if DISCARD_SP1:
+                    DISCARD_SP1 = False
+                    continue
 
-        print("TEST PAYLOAD SPLIT: {}".format(packet.rsplit(b',', 2)[0]))
+                packetType = 'S1'
+                # print("PACKET TYPE: PAYLOAD S1, WRITING TO FILE")
+                telemetry_sp1 = open("datafiles/Flight_" + str(TEAM_ID) + "_SP1.csv", 'a')
+                telemetry_sp1.write(packet)
+                if not packet.endswith("\n"):
+                    telemetry_sp1.write("\n")
+                telemetry_sp1.close()
+            elif split[3] == "S2":
+                if DISCARD_SP2:
+                    DISCARD_SP2 = False
+                    continue
 
-    # Upload to MQTT
-    MQTT.MQTT_publish(packet)
+                packetType = 'S2'
+                # print("PACKET TYPE: PAYLOAD S2, WRITING TO FILE")
+                telemetry_sp2 = open("datafiles/Flight_" + str(TEAM_ID) + "_SP2.csv", 'a')
+                telemetry_sp2.write(packet)
+                if not packet.endswith("\n"):
+                    telemetry_sp2.write("\n")
+                telemetry_sp2.close()
+            else:
+                print("WARNING: INVALID PACKET TYPE {}\n".format(split[3]))
+
+        # Find the command echo and store it
+        if packetType == "C" and len(split) >= 19:
+            lastCommandReceived = split[18].replace('\n','')
+
+        # MQTT ERROR CHECK
+        # Note: This change is due to an incorrect setup between the manual and the mqtt server
+        # The server expected SP1 and SP2 whereas the manual states packet type is S1 and S2
+        # The server will not work with S1 and S2
+        if packetType == 'S1':
+            packet = packet.replace("S1", "SP1")
+        elif packetType == 'S2':
+            packet = packet.replace("S2", "SP2")
+
+        # Upload to MQTT
+        try:
+            MQTT.MQTT_publish(packet)
+        except:
+            print("ERROR: An exception occured while publishing the packet")
+        print("PUBLISHED: {}".format(packet))
 
 
 def simp():
-    global command_queue
+    global CANSAT, lastCommandSent
     file = open(SIMP_FILE, 'r')
     lines = file.readlines()
     file.close()
+
     for line in lines:
         if line.startswith('#') or line == '' or line == '\n':
             continue
 
-        enqueue_command(line.replace('$', str(TEAM_ID)))
+        # This needs to happen async, race conditions be damned, so we can't use enqueue_command
+        # When we're processing 3 packets a second minimum python on lower end laptops can't keep up
+        # due to really inefficient code
+        command = line.replace('$', str(TEAM_ID))
+        lastCommandSent = command
+        CANSAT.write(bytes(command, 'utf8'))
+        print("SENT COMMAND: {}".format(command))
         sleep(1)
+
+        # enqueue_command(line.replace('$', str(TEAM_ID)))
+        # sleep(1)
 
 
 simp_thread = threading.Thread(target=simp, args=())
@@ -452,9 +539,9 @@ def main():
             write_serial(command_queue.pop(0))
 
         # Check for a packet, process as needed
-        packet = read_serial()
-        if packet is not None:
-            process_packet(packet)
+        packets = read_serial()
+        if len(packets) > 0:
+            process_packet(packets)
 
         # Update labels
         strvar_lastSent.set("Last command sent: {}".format(lastCommandSent))

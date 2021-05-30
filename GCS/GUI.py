@@ -230,6 +230,10 @@ while not stop:
         # Split the data
         data = line.replace("\n", " ").split(",")
 
+        # Ignore packet fragments
+        if len(data) < 13:
+            continue
+
         # Counter for packets received
         packets_received_cansat += 1
 
@@ -295,6 +299,10 @@ while not stop:
             # Split the data
             data = line.replace("\n", " ").split(",")
 
+            # Ignore packet fragments
+            if len(data) < 8:
+                continue
+
             # Counter for packets received
             packets_received_sp1 += 1
 
@@ -303,10 +311,9 @@ while not stop:
             altitude_values.append(float(data[4]))  # Altitude
             temp_values.append(float(data[5]))  # Temperature
             rotation_values.append(float(data[6]))  # Rotation rate
-            # voltage_values.append(float(data[7]))  # Battery voltage
-            gps_lat.append(float(data[8]))  # Latitude
-            gps_long.append(float(data[9]))  # Longitude
+            voltage_values.append(float(data[7]))  # Battery voltage
 
+        # TODO Voltage plots for the payloads throw errors
         # GPS subsystem has been removed from payloads to save weight
         # Plot SP1 data
         graph_alt.plot(time_values, altitude_values, GRAPH_LINE_STYLE, color=COLOR_SP1)
@@ -354,6 +361,10 @@ while not stop:
             # Split the data
             data = line.replace("\n", " ").split(",")
 
+            # Ignore packet fragments
+            if len(data) < 8:
+                continue
+
             # Counter for packets received
             packets_received_sp2 += 1
 
@@ -362,9 +373,7 @@ while not stop:
             altitude_values.append(float(data[4]))  # Altitude
             temp_values.append(float(data[5]))  # Temperature
             rotation_values.append(float(data[6]))  # Rotation rate
-            # voltage_values.append(float(data[7]))  # Battery voltage
-            gps_lat.append(float(data[8]))  # Latitude
-            gps_long.append(float(data[9]))  # Longitude
+            voltage_values.append(float(data[7]))  # Battery voltage
 
         # GPS subsystem has been removed from payloads to save weight
         # Plot sp2 data

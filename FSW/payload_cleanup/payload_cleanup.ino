@@ -3,10 +3,11 @@
 
 
 void setup() {
+  unsigned int unsInt = 0;
+  
   // Default EEPROM state
   EEPROM.update(ADDR_software_state, NOT_DEPLOYED);
-  EEPROM.update(ADDR_packet_count, 0);
-  EEPROM.update(ADDR_sim_enabled, 0);
+  EEPROM.put(ADDR_packet_count, unsInt);
 }
 
 int ledPin = 13;
