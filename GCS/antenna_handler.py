@@ -367,14 +367,16 @@ def read_serial():
         global CANSAT
         incoming_packet = b""
 
+        # TODO This delay needs to be tuned (prev 300, arduino 75)
+        sleepTime_ms = 100
         if CANSAT.in_waiting:
-            sleep(.3)
+            sleep(sleepTime_ms)
             while CANSAT.in_waiting:
                 incoming_packet += CANSAT.read()
                 if len(incoming_packet) > 6 and incoming_packet.endswith(b"2743"):
                     returnMe.append("2743" + incoming_packet.split(b"2743")[1].decode())
                     incoming_packet = b"2743"
-                    sleep(.3)
+                    sleep(sleepTime_ms)
 
             # print("INCOMING PACKET - LOWER: {}".format(incoming_packet))
             if incoming_packet != b"2743" and incoming_packet != b"":
