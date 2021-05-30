@@ -1,9 +1,9 @@
-// CRITICAL NOTE: SP1 COMPILER FLAG NEEDS TO BE TRUE WHEN COMPILING FOR SP1
-// AND FALSE WHEN COMPILING FOR SP2
-// Compiler flags
+// Compiler flags, CRITICAL NOTE: SET ALL TO FALSE BEFORE PUSHING FOR FLIGHT OR IT WILL HANG IN SETUP
+#define DEBUG true
 #define SERIAL_DEBUG true
 #define DEBUG_2 true  // Used to debug command receipt for SPXON
-#define DEBUG true
+
+// CRITICAL NOTE: SP1 COMPILER FLAG NEEDS TO BE TRUE WHEN COMPILING FOR SP1 AND FALSE WHEN COMPILING FOR SP2
 #define SP1 false
 
 // Libraries
@@ -20,12 +20,14 @@
 Adafruit_BMP3XX bmp;
 Adafruit_MPU6050 mpu;
 
+
 // Structs
 struct Time {
   byte seconds;
   byte minutes;
   byte hours;
 };
+
 
 // Variable declarations
 Time          old_time;
@@ -43,6 +45,7 @@ String cmd_echo = "";
 
 short transition_tracker = 0;
 
+
 // Constants
 #include "memorymap.h"  // Includes addresses for EEPROM and Serial aliases
 #include "pins.h"
@@ -55,9 +58,11 @@ float get_temperature() {
   return bmp.readTemperature();
 }
 
+
 float get_altitude() {
   return bmp.readAltitude(SEALEVEL_HPA);
 }
+
 
 float get_voltage() {
   // TODO Waiting for EE FOR EXACT PIN, UPDATE IN 'pins.h'
@@ -66,6 +71,7 @@ float get_voltage() {
   // Map to range, 1023 = 7.2v
   return map(voltage, 0, 1023, 0, 7.2);
 }
+
 
 float get_rotation(){
   sensors_event_t a, g, temp;
@@ -82,6 +88,7 @@ float get_rotation(){
   return rpm;
 }
 
+
 Time get_time() {
   Time time_info;
 
@@ -91,6 +98,7 @@ Time get_time() {
 
   return time_info;
 }
+
 
 // Polls sensors and global variables before constructing and sending a new packet to GCS
 void send_packet() {
@@ -123,11 +131,11 @@ void send_packet() {
   packet_count += 1;
   EEPROM.put(ADDR_packet_count, packet_count);
 
-#if SP1
-  payload += String(packet_count) + ",S1,";
-#else
-  payload += String(packet_count) + ",S2,";
-#endif
+  #if SP1
+    payload += String(packet_count) + ",S1,";
+  #else
+    payload += String(packet_count) + ",S2,";
+  #endif
 
   // Altitude
   payload += String(altitude) + ",";
@@ -161,6 +169,7 @@ void send_packet() {
 
 }
 
+
 void update_software_state(const byte newState) {
   software_state = newState;
   EEPROM.update(ADDR_software_state, newState);
@@ -184,6 +193,7 @@ void SetEndTransmission(){
   EEPROM.update(end_transmission_hh, end_transmission.hours);
 
 }
+
 
 void XBee_receive() {
   // STEP 1: Loop until terminator (\n) found || 100 ms pass (junk and start over)
@@ -257,22 +267,26 @@ void XBee_receive() {
 }
 
 
+// End function definitions
+
 
 void setup() {
-#if DEBUG
+  #if DEBUG
   Serial.begin(9600);
   while (!Serial);
-#endif
+  #endif
 
+  #if DEBUG
   Wire.begin();
   Serial.println("WIRE BEGIN SUCCESS");
+  #endif
 
   // XBee init
   XBEE_CONTAINER.begin(9600);
 
-#if SERIAL_DEBUG
-      Serial.println("XBEE INIT COMPLETE");
-#endif
+  #if DEBUG
+  Serial.println("XBEE INIT COMPLETE");
+  #endif
 
   // BEGIN READ EEPROM
   old_time.seconds  = EEPROM.read(ADDR_time_ss);
@@ -298,14 +312,14 @@ void setup() {
   // Update time
   mission_time = get_time();
 
-#if SERIAL_DEBUG
-      Serial.println("EEPROM READ COMPLETE");
-      Serial.print("SOFTWARE_STATE: ");
-      Serial.println(software_state);
-#endif
+  #if DEBUG
+  Serial.println("EEPROM READ COMPLETE");
+  Serial.print("SOFTWARE_STATE: ");
+  Serial.println(software_state);
+  #endif
 
 if (!mpu.begin()){
-  #if SERIAL_DEBUG
+  #if DEBUG
     Serial.println("INIT FAILED: MPU.BEGIN_I2C() RETURNED FALSE");
   #endif
     abort();
@@ -313,38 +327,29 @@ if (!mpu.begin()){
 
   mpu.setGyroRange(MPU6050_RANGE_500_DEG);
 
-#if SERIAL_DEBUG
+  #if DEBUG
   Serial.println("MPU INIT COMPLETE SUCCESSFULLY");
-#endif
+  #endif
 
 if (!bmp.begin_I2C()){
-  #if SERIAL_DEBUG
+  #if DEBUG
       Serial.println("INIT FAILED: BMP.BEGIN() RETURNED FALSE");
   #endif
     abort();
 }
 
-
-#if SERIAL_DEBUG
+#if DEBUG
       Serial.println("BMP INIT COMPLETE SUCCESSFULLY");
       Serial.println("SETUP COMPLETE SUCCESSFULLY");
 #endif
-
 }
 
-void loop() {
-#if SERIAL_DEBUG
-//      Serial.println("LOOP - TOP");
-#endif
 
+void loop() {
   // Check for new packets received by the XBee, handle them as needed
   XBee_receive();
 
   if (software_state == DEPLOYED || software_state == LANDED) {
-//      #if SERIAL_DEBUG
-//        Serial.println("DROP INTO TIME CHECK");
-//      #endif
-    
     // Update time
     mission_time = get_time();
 
@@ -359,13 +364,7 @@ void loop() {
       EEPROM.update(ADDR_time_mm, mission_time.minutes);
       EEPROM.update(ADDR_time_ss, mission_time.seconds);
 
-//        #if SERIAL_DEBUG
-//          Serial.println("DROP TIME UPDATE");
-//        #endif
     } else {
-//        #if SERIAL_DEBUG
-//          Serial.println("DROP TIME NO UPDATE");
-//        #endif
       return;
     }
   }
@@ -375,15 +374,13 @@ void loop() {
   Serial.println("void loop()::switch");
 #endif
 
-
-
 switch (software_state){
   case NOT_DEPLOYED:
   {
-#if SERIAL_DEBUG
-        Serial.println("DEBUG: NOT_DEPLOYED");
-        delay(100);
-#endif
+    #if SERIAL_DEBUG
+    Serial.println("DEBUG: NOT_DEPLOYED");
+    delay(100);
+    #endif
 
     // Do nothing, wait for XBee command 'CXON'
     return;
@@ -391,10 +388,10 @@ switch (software_state){
 
   case DEPLOYED:
   {
-#if SERIAL_DEBUG
-        Serial.println("DEBUG: DEPLOYED");
-        delay(100);
-#endif
+    #if SERIAL_DEBUG
+    Serial.println("DEBUG: DEPLOYED");
+    delay(100);
+    #endif
 
     // Check if landed
     float new_altitude = get_altitude();
@@ -409,8 +406,6 @@ switch (software_state){
     }
 
     altitude = new_altitude;
-
-    
     
     send_packet();
     break;
@@ -427,10 +422,8 @@ switch (software_state){
       }
     }
   
-
     altitude = get_altitude();
     send_packet();
-
 
     break;
   }
@@ -443,17 +436,4 @@ switch (software_state){
     #endif
     break;
   }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-}
+}}
