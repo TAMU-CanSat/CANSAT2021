@@ -287,7 +287,7 @@ while not stop:
         rotation_values = []
         gps_lat.clear()
         gps_long.clear()
-        # voltage_values.clear()
+        voltage_values.clear()
 
         # Loop through sp1 data and add to arrays for graphing
         packets_received_sp1 = 0
@@ -313,20 +313,19 @@ while not stop:
             rotation_values.append(float(data[6]))  # Rotation rate
             voltage_values.append(float(data[7]))  # Battery voltage
 
-        # TODO Voltage plots for the payloads throw errors
         # GPS subsystem has been removed from payloads to save weight
         # Plot SP1 data
         graph_alt.plot(time_values, altitude_values, GRAPH_LINE_STYLE, color=COLOR_SP1)
         # graph_gps.plot(gps_long, gps_lat, GRAPH_LINE_STYLE, color=COLOR_SP1)
         graph_temp.plot(time_values, temp_values, GRAPH_LINE_STYLE, color=COLOR_SP1)
-        # graph_voltage.plot(time_values, voltage_values, GRAPH_LINE_STYLE, color=COLOR_SP1)
+        graph_voltage.plot(time_values, voltage_values, GRAPH_LINE_STYLE, color=COLOR_SP1)
         graph_rotation.plot(time_values, rotation_values, GRAPH_LINE_STYLE, color=COLOR_SP1)
 
         # Annotate SP1 data points
         graph_alt.annotate("SP1", (time_values[len(time_values) - 1], altitude_values[len(altitude_values) - 1]))
         # graph_gps.annotate("SP1", (gps_long[len(gps_long) - 1], gps_lat[len(gps_lat) - 1]), color="white")
         graph_temp.annotate("SP1", (time_values[len(time_values) - 1], temp_values[len(temp_values) - 1]))
-        # graph_voltage.annotate("SP1", (time_values[len(time_values) - 1], voltage_values[len(voltage_values) - 1]))
+        graph_voltage.annotate("SP1", (time_values[len(time_values) - 1], voltage_values[len(voltage_values) - 1]))
         graph_rotation.annotate("SP1", (time_values[len(time_values) - 1], rotation_values[len(rotation_values) - 1]))
 
         # Grab the most recent data from the sp1 datafile
@@ -349,7 +348,7 @@ while not stop:
         rotation_values = []
         gps_lat.clear()
         gps_long.clear()
-        # voltage_values.clear()
+        voltage_values.clear()
 
         # Loop through sp2 data and add to arrays for graphing
         packets_received_sp2 = 0
@@ -380,14 +379,14 @@ while not stop:
         graph_alt.plot(time_values, altitude_values, GRAPH_LINE_STYLE, color=COLOR_SP2)
         # graph_gps.plot(gps_long, gps_lat, GRAPH_LINE_STYLE, color=COLOR_SP2)
         graph_temp.plot(time_values, temp_values, GRAPH_LINE_STYLE, color=COLOR_SP2)
-        # graph_voltage.plot(time_values, voltage_values, GRAPH_LINE_STYLE, color=COLOR_SP2)
+        graph_voltage.plot(time_values, voltage_values, GRAPH_LINE_STYLE, color=COLOR_SP2)
         graph_rotation.plot(time_values, rotation_values, GRAPH_LINE_STYLE, color=COLOR_SP2)
 
         # Annotate SP2 data points
         graph_alt.annotate("SP2", (time_values[len(time_values) - 1], altitude_values[len(altitude_values) - 1]))
         # graph_gps.annotate("SP2", (gps_long[len(gps_long) - 1], gps_lat[len(gps_lat) - 1]), color="white")
         graph_temp.annotate("SP2", (time_values[len(time_values) - 1], temp_values[len(temp_values) - 1]))
-        # graph_voltage.annotate("SP2", (time_values[len(time_values) - 1], voltage_values[len(voltage_values) - 1]))
+        graph_voltage.annotate("SP2", (time_values[len(time_values) - 1], voltage_values[len(voltage_values) - 1]))
         graph_rotation.annotate("SP2", (time_values[len(time_values) - 1], rotation_values[len(rotation_values) - 1]))
 
         # Grab the most recent data from the sp2 datafile
