@@ -359,7 +359,7 @@ void XBee_receive() {
         workingString = "";
 
         if (XBEE_PAYLOAD_SERIAL.available()){
-          delay(50);
+          delay(75);
         } else {
           // This break is important to avoid race conditions
           break;
