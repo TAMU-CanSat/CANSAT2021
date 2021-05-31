@@ -151,8 +151,8 @@ def hasData(path):
 
 
 # Set tkinter window icon
-icon = tkinter.PhotoImage(file=ICON_FILEPATH)
-window.iconphoto(False, icon)
+# icon = tkinter.PhotoImage(file=ICON_FILEPATH)
+# window.iconphoto(False, icon)
 
 # Variables to track last packets received and lost packets
 packets_received_cansat = 0
