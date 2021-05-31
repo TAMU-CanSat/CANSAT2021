@@ -1,7 +1,8 @@
 // Compiler flags, CRITICAL NOTE: SET ALL TO FALSE BEFORE PUSHING FOR FLIGHT OR IT WILL HANG IN SETUP
-#define DEBUG true
-#define SERIAL_DEBUG true
-#define DEBUG_2 true  // Used to debug command receipt for SPXON
+#define DEBUG false
+#define SERIAL_DEBUG false
+#define DEBUG_2 false  // Used to debug command receipt for SPXON
+#define DEBUG_3 false  // Used to track down weird packet issues
 
 // CRITICAL NOTE: SP1 COMPILER FLAG NEEDS TO BE TRUE WHEN COMPILING FOR SP1 AND FALSE WHEN COMPILING FOR SP2
 #define SP1 false
@@ -131,8 +132,10 @@ void send_packet() {
   EEPROM.put(ADDR_packet_count, packet_count);
 
   #if SP1
+  #warning "COMPILING FOR SP1, PLEASE VERIFY AGAINST PAYLOADS";
     payload += String(packet_count) + ",S1,";
   #else
+  #warning "COMPILING FOR SP2, PLEASE VERIFY AGAINST PAYLOADS";
     payload += String(packet_count) + ",S2,";
   #endif
 
@@ -154,15 +157,15 @@ void send_packet() {
   // cmd echo
   payload += cmd_echo + "\n";
 
-  // Send the packet
-  XBEE_CONTAINER.write(payload.c_str());
-
-  #if SERIAL_DEBUG
+  #if DEBUG_3
     Serial.print("PACKET: ");
-    Serial.println(payload);
+    Serial.print(payload);
   #endif
 
-  #if SERIAL_DEBUG
+  // Send the packet
+  XBEE_CONTAINER.write(payload.c_str());
+  
+  #if DEBUG_3
     Serial.println("PACKET SENT");
   #endif
 
