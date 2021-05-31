@@ -1,10 +1,11 @@
 // Since these are compiler directives, we can have as many as we want without impacting performance
 // Compiler flags, CRITICAL NOTE: SET ALL TO FALSE BEFORE PUSHING FOR FLIGHT OR IT WILL HANG IN SETUP
-#define DEBUG true  // Serial only starts if this is true
+#define DEBUG false  // Serial only starts if this is true
 #define SERIAL_DEBUG false
 #define DEBUG_1 false  // SERIAL_DEBUG was too crowded, use DEBUG_1 for new debugs
 #define DEBUG_2 false  // Used for payload relay debugging
-#define DEBUG_3 true  // Used to debug GPS function &
+#define DEBUG_3 false  // Used to debug GPS function &
+#define DEBUG_4 false
 
 // Libraries
 #include <EEPROM.h>
@@ -345,52 +346,30 @@ void XBee_receive() {
   // Read characters from Payload XBee if available
   String workingString = "";
   if (XBEE_PAYLOAD_SERIAL.available()) {
-    delay(delay_ms);  // Smaller delays result in errors due to the slow processor speed of the 3.2s
-    char c;
-
-    #if DEBUG_2
-    Serial.print("RECEIVING (CHARS): ");
-    #endif
-    
     while (XBEE_PAYLOAD_SERIAL.available()) {
-      c = XBEE_PAYLOAD_SERIAL.read();
-      workingString += c;
-
-      #if DEBUG_2
-      Serial.print(c);
-      #endif
+      workingString = XBEE_PAYLOAD_SERIAL.readStringUntil('\n');
       
-      if (c == '\n'){
-        // Determine if this was from SP1 or SP2, update as needed
-        if (workingString.substring(18,18) == "1"){
-          sp1_packet_count += 1;
-          EEPROM.update(ADDR_sp1_packet_count, sp1_packet_count);
-        } else {
-          sp2_packet_count += 1;
-          EEPROM.update(ADDR_sp2_packet_count, sp2_packet_count);
-        }
-        
-        // Relay and continue if more available
-        #if DEBUG_2
-        Serial.println();
-        Serial.print("Relaying to ground: ");
-        Serial.println(workingString);
-        #endif
-
-        XBEE_GCS_SERIAL.write(workingString.c_str());
-
-        // Write to SD card
-        write_to_SD(workingString);
-
-        workingString = "";
-
-        if (XBEE_PAYLOAD_SERIAL.available()){
-          delay(delay_ms);
-        } else {
-          // This break is important to avoid race conditions
-          break;
-        }
+      // Determine if this was from SP1 or SP2, update as needed
+      if (workingString.indexOf("S1") > 0){
+        sp1_packet_count += 1;
+        EEPROM.update(ADDR_sp1_packet_count, sp1_packet_count);
+      } else {
+        sp2_packet_count += 1;
+        EEPROM.update(ADDR_sp2_packet_count, sp2_packet_count);
       }
+      
+      // Relay and continue if more available
+      #if DEBUG_4
+      Serial.println();
+      Serial.print("Relaying to ground: ");
+      Serial.println(workingString);
+      #endif
+
+      XBEE_GCS_SERIAL.write(workingString.c_str());
+
+      // Write to SD card
+      write_to_SD(workingString);
+
     }
   }
 
@@ -564,6 +543,8 @@ void setup() {
   // XBee init
   XBEE_GCS_SERIAL.begin(9600);
   XBEE_PAYLOAD_SERIAL.begin(9600);
+  XBEE_PAYLOAD_SERIAL.setTimeout(75);
+
 
 #if DEBUG
       Serial.println("Waiting for XBEE GCS INIT");
@@ -669,7 +650,7 @@ if (!SD.begin(BUILTIN_SDCARD)){
   Serial.println("INIT FAILED: SD.BEGIN() RETURNED FALSE");
   #endif
   
-  abort();
+//  abort();
 } else {
   // Open a file to write to with the current time
   Time now = get_rtc_time();
