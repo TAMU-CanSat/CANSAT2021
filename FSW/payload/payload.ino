@@ -14,7 +14,6 @@
 // Hardware libraries
 #include <Adafruit_BMP3XX.h>
 #include <Adafruit_MPU6050.h>
-#include <Adafruit_GPS.h>
 
 // Sensors/Hardware declarations
 Adafruit_BMP3XX bmp;
