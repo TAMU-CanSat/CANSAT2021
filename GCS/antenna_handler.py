@@ -73,7 +73,8 @@ print()
 # Ask and wipe flight data files
 if ALLOW_WIPE:
     print("WIPE AND ARCHIVE EXISTING FLIGHT FILES (Y/N)? ", end="")
-    source = input()
+    # source = input()
+    source = 'Y'
 
     if source == 'Y':
         wipe_flight_files.wipe_and_archive()
@@ -370,17 +371,18 @@ def read_serial():
         incoming_packet = b""
 
         # TODO This delay needs to be tuned (prev 300, arduino 75)
-        sleepTime_ms = 75
+        sleepTime_ms = 125
         if CANSAT.in_waiting:
             sleep(sleepTime_ms / 1000)
             while CANSAT.in_waiting:
                 incoming_packet += CANSAT.read()
-                if len(incoming_packet) > 6 and incoming_packet.endswith(b"2743"):
+                if len(incoming_packet) > 8 and incoming_packet.endswith(b"2743"):
+                    print("INCOMING PACKET: {}".format("2743" + incoming_packet.split(b"2743")[1].decode()))
                     returnMe.append("2743" + incoming_packet.split(b"2743")[1].decode())
                     incoming_packet = b"2743"
                     sleep(sleepTime_ms / 1000)
 
-            # print("INCOMING PACKET - LOWER: {}".format(incoming_packet))
+            print("INCOMING PACKET - LOWER: {}".format(incoming_packet.decode()))
             if incoming_packet != b"2743" and incoming_packet != b"":
                 returnMe.append(incoming_packet.decode())
 
