@@ -340,9 +340,6 @@ void XBee_receive() {
   // STEP 3: If GCS cmd, process as needed
   // STEP 4: Profit
 
-  // Time to delay between an available and a read for payload packets
-  const short delay_ms = 75;
-
   // Read characters from Payload XBee if available
   String workingString = "";
   if (XBEE_PAYLOAD_SERIAL.available()) {
