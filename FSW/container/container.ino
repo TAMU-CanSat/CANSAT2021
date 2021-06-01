@@ -1,29 +1,24 @@
-// Since these are compiler directives, we can have as many as we want without impacting performance
-// Compiler flags, CRITICAL NOTE: SET ALL TO FALSE BEFORE PUSHING FOR FLIGHT OR IT WILL HANG IN SETUP
-#define DEBUG false  // Serial only starts if this is true
-#define SERIAL_DEBUG false
-#define DEBUG_1 false  // SERIAL_DEBUG was too crowded, use DEBUG_1 for new debugs
-#define DEBUG_2 false  // Used for payload relay debugging
-#define DEBUG_3 false  // Used to debug GPS function &
-#define DEBUG_4 false
+// Compiler flags have moved to config.h
 
 // Libraries
 #include <EEPROM.h>
 #include <Wire.h>
-
-// Hardware libraries
 #include <RTClib.h>
 #include <Adafruit_BMP3XX.h>
 #include <Adafruit_GPS.h>
 #include <Servo.h>
 #include <SD.h>
 
+// Other includes
+#include "memorymap.h"
+#include "pins.h"
+#include "config.h"
+
 // Sensors/Hardware declarations
 RTC_PCF8523 rtc;
 Adafruit_BMP3XX bmp;
 Adafruit_GPS gps(&Serial3);
 Servo servo;
-
 
 // Structs
 struct Time {
@@ -39,13 +34,6 @@ struct GPS_struct {  // Used to encapsulate GPS information
   byte sats;
   Time time;
 };
-
-
-// Constants
-#include "memorymap.h"  // Includes addresses for EEPROM & software_state alises
-#include "pins.h"
-const short TEAM_ID = 2743;
-const float SEALEVEL_HPA = 1014.6F;  // !NOTE: Set to sealevel pressure in hPa!
 
 // Variable declarations
 Time          rtc_time_old;  // Tracks rtc time before last shutdown
@@ -72,7 +60,6 @@ File file;
 // Other variables
 short state_transition_tracker        = 0;  // Used to track cycles for transition points between states
 short state_transition_tracker_state  = -1;
-
 
 // FUNCTION DEFINITIONS
 Time get_rtc_time() {

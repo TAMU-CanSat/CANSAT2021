@@ -1,25 +1,20 @@
-// Compiler flags, CRITICAL NOTE: SET ALL TO FALSE BEFORE PUSHING FOR FLIGHT OR IT WILL HANG IN SETUP
-#define DEBUG false
-#define SERIAL_DEBUG false
-#define DEBUG_2 false  // Used to debug command receipt for SPXON
-#define DEBUG_3 false  // Used to track down weird packet issues
-
-// CRITICAL NOTE: SP1 COMPILER FLAG NEEDS TO BE TRUE WHEN COMPILING FOR SP1 AND FALSE WHEN COMPILING FOR SP2
-#define SP1 false
+// Compiler flags have moved to config.h
 
 // Libraries
 #include <EEPROM.h>
 #include <Wire.h>
 #include <TimeLib.h>
-
-// Hardware libraries
 #include <Adafruit_BMP3XX.h>
 #include <Adafruit_MPU6050.h>
+
+// Other includes
+#include "memorymap.h"
+#include "pins.h"
+#include "config.h"
 
 // Sensors/Hardware declarations
 Adafruit_BMP3XX bmp;
 Adafruit_MPU6050 mpu;
-
 
 // Structs
 struct Time {
@@ -27,7 +22,6 @@ struct Time {
   byte minutes;
   byte hours;
 };
-
 
 // Variable declarations
 Time          old_time;
@@ -44,13 +38,6 @@ float rotation_rate;
 String cmd_echo = "";
 
 short transition_tracker = 0;
-
-
-// Constants
-#include "memorymap.h"  // Includes addresses for EEPROM and Serial aliases
-#include "pins.h"
-const short TEAM_ID = 2743;
-const float SEALEVEL_HPA = 1014.6F;  // CRITICAL NOTE: Set to sealevel pressure in hPa!
 
 
 // Functions
