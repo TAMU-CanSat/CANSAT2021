@@ -4,7 +4,7 @@
 #include <EEPROM.h>
 #include <Wire.h>
 #include <RTClib.h>
-#include <Adafruit_BMP3XX.h>
+#include <Adafruit_BMP280.h>
 #include <Adafruit_GPS.h>
 #include <Servo.h>
 #include <SD.h>
@@ -16,7 +16,7 @@
 
 // Sensors/Hardware declarations
 RTC_PCF8523 rtc;
-Adafruit_BMP3XX bmp;
+Adafruit_BMP280 bmp;
 Adafruit_GPS gps(&Serial3);
 Servo servo;
 
@@ -83,7 +83,7 @@ float get_temperature() {
 float get_altitude() {
   // If sim_active (mode), return simulated data
   if (mode) {
-    // Modified code from Adafruit_BMP3XX.cpp/readAltitude()
+    // Modified code from Adafruit_BMP280.cpp/readAltitude()
     float pressure = sim_pressure;
 
     #if SERIAL_DEBUG
@@ -614,7 +614,7 @@ void setup() {
   // Init sensors if we're waiting for launch or landed
   if (software_state != LANDED ) {//&& software_state != LAUNCH_WAIT) {
     // BMP
-    if (!bmp.begin_I2C()) {
+    if (!bmp.begin()) {
 #if DEBUG
       Serial.println("INIT FAILED: BMP.BEGIN() RETURNED FALSE");
       Serial.flush();
