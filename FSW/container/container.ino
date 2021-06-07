@@ -182,10 +182,10 @@ void reset_prm(bool confirm) {
   if (confirm) {
         servo.write(SERVO_DEFAULT);
         
-        sp1_released = true;
+        sp1_released = false;
         EEPROM.update(ADDR_sp1_released, sp1_released);
 
-        sp2_released = true;
+        sp2_released = false;
         EEPROM.update(ADDR_sp2_released, sp2_released);
   }
 }
