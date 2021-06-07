@@ -178,6 +178,18 @@ void release_sp2(bool confirm) {
   }
 }
 
+void reset_prm(bool confirm) {
+  if (confirm) {
+        servo.write(SERVO_DEFAULT);
+        
+        sp1_released = true;
+        EEPROM.update(ADDR_sp1_released, sp1_released);
+
+        sp2_released = true;
+        EEPROM.update(ADDR_sp2_released, sp2_released);
+  }
+}
+
 
 void update_software_state(const byte newState) {
   software_state = newState;
@@ -488,8 +500,8 @@ void XBee_receive() {
           cmd_echo = "SIMP" + String(sim_pressure);
 
       } else if (workingString.startsWith("ZERO")) {
-          // Does nothing
-          cmd_echo = "ZERO";
+          // Set PRM state to default and reset payload release values
+          reset_prm(true);
           
       } else if (workingString.startsWith("R_SP1")) {
           release_sp1(true);
