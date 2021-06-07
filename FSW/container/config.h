@@ -3,6 +3,13 @@
 const float SEALEVEL_HPA = 1014.6F;  
 
 
+// Servo config
+// NOTE: The current values are junk values and need to be set and tested
+const short SERVO_RELEASE_SP1 = 75;
+const short SERVO_RELEASE_SP2 = 105;
+const short SERVO_DEFAULT     = 90;
+
+
 // Debugging, only set to true if you know what you're doing
 // Serial only starts if this is true, and it will hang until it starts if true
 #define DEBUG false 
