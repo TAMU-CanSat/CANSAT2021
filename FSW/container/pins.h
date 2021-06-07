@@ -15,4 +15,4 @@ const byte GPS_RX = 			15;
 const byte GPS_ENABLE = 		16;
 const byte I2C_SDA = 			18;
 const byte I2C_SCL = 			19;
-const byte VOLTAGE_PIN =     23;
+const byte VOLTAGE_PIN =     27;
