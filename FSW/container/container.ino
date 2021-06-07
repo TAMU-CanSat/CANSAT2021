@@ -133,8 +133,8 @@ float get_voltage() {
   // TODO This is untested since we've been unable to test the system with a battery in
   float voltage = analogRead(VOLTAGE_PIN);
 
-  // Map to range, 1023 = 7.2v
-  return map(voltage, 0, 1023, 0, 7.2);
+  // Map to range, 1023 = 7.4v
+  return map(voltage, 0, 1023, 0, 7.4);
 }
 
 
