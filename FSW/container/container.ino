@@ -159,7 +159,7 @@ void release_sp1(bool confirm) {
   if (confirm) {
     // TODO Servo values need to be tested
     // Release payload 1
-    servo.write(75);
+    servo.write(SERVO_RELEASE_SP1);
 
     // Activate payload
     send_packet_payload(1);
@@ -171,7 +171,7 @@ void release_sp2(bool confirm) {
   if (confirm) {
     // TODO Servo values need to be tested
     // Release payload 2
-    servo.write(105);
+    servo.write(SERVO_RELEASE_SP2);
 
     // Activate payload
     send_packet_payload(2);
@@ -558,11 +558,9 @@ void setup() {
       Serial.println("RTC INIT COMPLETE");
 #endif
 
-  // TODO Servo values all need to be tested
   // Servo init
   servo.attach(SERVO_PWM);
-  servo.write(90);
-
+  
 #if DEBUG
       Serial.println("SERVO ATTACHED");
 #endif
@@ -593,6 +591,11 @@ void setup() {
       Serial.print("SOFTWARE_STATE: ");
       Serial.println(software_state);
 #endif
+
+// Set the servo value to default if no payloads released
+if (!sp1_released && !sp2_released) {
+    servo.write(SERVO_DEFAULT);
+}
 
   // Init GPS if we're not landed so it can get a fix asap
   if (software_state != LANDED) {
