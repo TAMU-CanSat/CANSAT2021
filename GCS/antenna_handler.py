@@ -24,7 +24,7 @@ TEAM_ID = 2743
 
 # Disable before real flights to prevent operator error
 SIM_ALLOWED = True
-SIMP_FILE = "datafiles/simp_example.csv"
+SIMP_FILE = "datafiles/Cansat_2021_sim_file_B.csv"
 
 # Disable to disable safety buttons
 SAFETY_BUTTONS = True
