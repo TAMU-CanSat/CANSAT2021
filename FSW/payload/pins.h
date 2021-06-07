@@ -6,4 +6,4 @@ const byte I2C_SDA = 			18;
 const byte I2C_SCL = 			19;
 
 // TODO WAITING TO HEAR THE EXACT PIN FROM EE
-const byte VOLTAGE_PIN =        23;
+const byte VOLTAGE_PIN =        27;
